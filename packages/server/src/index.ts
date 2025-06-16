@@ -1,6 +1,7 @@
+import 'dotenv/config'
 import express, { Request, Response } from 'express'
 import path from 'path'
-import cors from 'cors'
+
 import http from 'http'
 import cookieParser from 'cookie-parser'
 import { DataSource, IsNull } from 'typeorm'
@@ -35,6 +36,26 @@ import { Organization } from './enterprise/database/entities/organization.entity
 import { GeneralRole, Role } from './enterprise/database/entities/role.entity'
 import { migrateApiKeysFromJsonToDb } from './utils/apiKey'
 import { ALLOWED_ORIGINS, isDev } from './config'
+
+// CORS middleware—insert at top, before routes
+function corsMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const allowedOrigins = [
+        'https://flowise-enc19y3rs-marcus-thomas-projects-90ba4767.vercel.app',
+        'http://localhost:3000'
+    ]
+    const origin = req.headers.origin as string | undefined
+    if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin)
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        res.setHeader('Access-Control-Allow-Credentials', 'true')
+    }
+    if (req.method === 'OPTIONS') {
+        res.statusCode = 204
+        return res.end()
+    }
+    return next()
+}
 
 declare global {
     namespace Express {
@@ -154,6 +175,8 @@ export class App {
     }
 
     async config() {
+        this.app.use(corsMiddleware)
+
         // Limit is needed to allow sending/receiving base64 encoded string
         const flowise_file_size_limit = process.env.FLOWISE_FILE_SIZE_LIMIT || '50mb'
         this.app.use(express.json({ limit: flowise_file_size_limit }))
@@ -165,48 +188,14 @@ export class App {
         // Parse cookies
         this.app.use(cookieParser())
 
-        const corsOptions = {
-            origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-                if (!origin) return callback(null, true)
-                if (isDev) return callback(null, true)
-                if (ALLOWED_ORIGINS.includes(origin)) {
-                    return callback(null, true)
-                }
-                return callback(new Error(`Origin ${origin} not allowed by CORS`))
-            },
-            credentials: true,
-            methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-            optionsSuccessStatus: 204,
-            maxAge: 86400
-        }
-
-        this.app.use(cors(corsOptions))
-        this.app.options('*', cors())
-
-        // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
         this.app.use((req, res, next) => {
             const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins === '*') {
-                next()
-            } else {
+            if (allowedOrigins !== '*') {
                 const csp = `frame-ancestors ${allowedOrigins}`
                 res.setHeader('Content-Security-Policy', csp)
-                next()
             }
-        })
-
-        // (You can now remove your custom Access-Control-Allow-Credentials header middleware)        // Allow embedding from specified domains.
-        this.app.use((req, res, next) => {
-            const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins == '*') {
-                next()
-            } else {
-                const csp = `frame-ancestors ${allowedOrigins}`
-                res.setHeader('Content-Security-Policy', csp)
-                next()
-            }
+            next()
         })
 
         // Switch off the default 'X-Powered-By: Express' header
