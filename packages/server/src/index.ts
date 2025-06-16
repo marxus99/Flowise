@@ -165,12 +165,14 @@ export class App {
         this.app.use(cookieParser())
 
         const corsOptions = {
-            origin: 'https://flowise-ui-liart.vercel.app',
+            origin: 'https://flowise-el5trqtw4-marcus-thomas-projects-90ba4767.vercel.app',
+            methods: ['GET', 'POST', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
             credentials: true
         }
 
         this.app.use(cors(corsOptions))
-        this.app.options('*', cors(corsOptions))
+        this.app.options('*', cors())
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
