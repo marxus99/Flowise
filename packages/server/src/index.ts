@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express'
 import path from 'path'
 import http from 'http'
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
 import { DataSource, IsNull } from 'typeorm'
 import { MODE, Platform } from './Interface'
 import { getNodeModulesPackagePath, getEncryptionKey } from './utils'
@@ -165,20 +166,15 @@ export class App {
         // Parse cookies
         this.app.use(cookieParser())
 
-        const allowedOrigins = ['https://flowise-772e48kex-marcus-thomas-projects-90ba4767.vercel.app', 'http://localhost:3000']
-        this.app.use((req, res, next) => {
-            const origin = req.headers.origin as string | undefined
-            if (origin && allowedOrigins.includes(origin)) {
-                res.setHeader('Access-Control-Allow-Origin', origin)
-                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-                res.setHeader('Access-Control-Allow-Credentials', 'true')
-            }
-            if (req.method === 'OPTIONS') {
-                return res.status(204).end()
-            }
-            next()
-        })
+        const corsOptions = {
+            origin: ALLOWED_ORIGINS,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+            credentials: true
+        }
+
+        this.app.use(cors(corsOptions))
+        this.app.options('*', cors(corsOptions))
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
