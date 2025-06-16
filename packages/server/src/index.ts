@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express, { Request, Response } from 'express'
 import path from 'path'
 import cors from 'cors'
@@ -13,7 +14,7 @@ import { ChatFlow } from './database/entities/ChatFlow'
 import { CachePool } from './CachePool'
 import { AbortControllerPool } from './AbortControllerPool'
 import { RateLimiterManager } from './utils/rateLimit'
-import { getAllowedIframeOrigins, sanitizeMiddleware } from './utils/XSS'
+import { getAllowedIframeOrigins, sanitizeMiddleware, getCorsOptions } from './utils/XSS'
 import { Telemetry } from './utils/telemetry'
 import flowiseApiV1Router from './routes'
 import errorHandlerMiddleware from './middlewares/errors'
@@ -166,14 +167,7 @@ export class App {
         this.app.use(cookieParser())
 
         const corsOptions = {
-            origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-                if (!origin) return callback(null, true)
-                if (isDev) return callback(null, true)
-                if (ALLOWED_ORIGINS.includes(origin)) {
-                    return callback(null, true)
-                }
-                return callback(new Error(`Origin ${origin} not allowed by CORS`))
-            },
+            ...getCorsOptions(),
             credentials: true,
             methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
             allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -182,31 +176,16 @@ export class App {
         }
 
         this.app.use(cors(corsOptions))
-        this.app.options('*', cors())
+        this.app.options('*', cors(corsOptions))
 
-        // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
         this.app.use((req, res, next) => {
             const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins === '*') {
-                next()
-            } else {
+            if (allowedOrigins !== '*') {
                 const csp = `frame-ancestors ${allowedOrigins}`
                 res.setHeader('Content-Security-Policy', csp)
-                next()
             }
-        })
-
-        // (You can now remove your custom Access-Control-Allow-Credentials header middleware)        // Allow embedding from specified domains.
-        this.app.use((req, res, next) => {
-            const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins == '*') {
-                next()
-            } else {
-                const csp = `frame-ancestors ${allowedOrigins}`
-                res.setHeader('Content-Security-Policy', csp)
-                next()
-            }
+            next()
         })
 
         // Switch off the default 'X-Powered-By: Express' header
