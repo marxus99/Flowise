@@ -165,19 +165,20 @@ export class App {
         // Parse cookies
         this.app.use(cookieParser())
 
-        const corsOptions = {
-            origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-                if (!origin || ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)) {
-                    callback(null, true)
-                } else {
-                    callback(new Error('Not allowed by CORS'))
-                }
-            },
-            credentials: true
-        }
+        this.app.use(
+            cors({
+                origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+                    if (!origin) return cb(null, true)
+                    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+                    return cb(new Error(`Origin ${origin} not allowed by CORS`))
+                },
+                credentials: true,
+                methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+                allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+            })
+        )
 
-        this.app.use(cors(corsOptions))
-        this.app.options('*', cors(corsOptions))
+        this.app.options('*', cors())
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
