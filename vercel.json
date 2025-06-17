@@ -1,3 +1,19 @@
 {
-    "rewrites": [{ "source": "/api/flowise/:path*", "destination": "https://flowise-ai-cqlx.onrender.com/api/v1/:path*" }]
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/.*",
+      "dest": "https://flowise-ai-cqlx.onrender.com/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
 }
