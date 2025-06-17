@@ -51,7 +51,7 @@ const getSingleOpenaiAssistant = async (req: Request, res: Response, next: NextF
 const getFileFromAssistant = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.body.chatflowId || !req.body.chatId || !req.body.fileName) {
-            return res.status(500).send(`Invalid file path`)
+            return res.status(500).json({ message: 'Invalid file path' })
         }
         const appServer = getRunningExpressApp()
         const chatflowId = req.body.chatflowId as string

@@ -5,4 +5,6 @@ export const ALLOWED_ORIGINS = (
     .map((o) => o.trim())
     .filter(Boolean)
 
+export const FORCE_JSON_RESPONSES = process.env.FORCE_JSON_RESPONSES === 'true'
+
 export const isDev = process.env.NODE_ENV !== 'production'

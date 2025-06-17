@@ -11,7 +11,7 @@ import { Workspace } from '../../enterprise/database/entities/workspace.entity'
 const streamUploadedFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.query.chatflowId || !req.query.chatId || !req.query.fileName) {
-            return res.status(500).send(`Invalid file path`)
+            return res.status(500).json({ message: 'Invalid file path' })
         }
         const chatflowId = req.query.chatflowId as string
         const chatId = req.query.chatId as string
