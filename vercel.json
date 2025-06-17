@@ -1,3 +1,10 @@
 {
-    "rewrites": [{ "source": "/api/flowise/:path*", "destination": "https://flowise-ai-cqlx.onrender.com/api/v1/:path*" }]
+  "rewrites": [
+    {
+      "source": "/api/flowise/:path*",
+      "destination": "https://flowise-ai-cqlx.onrender.com/api/v1/:path*"
+    }
+  ],
+  "installCommand": "corepack enable && pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build"
 }
