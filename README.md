@@ -136,6 +136,28 @@ Flowise has 3 different modules in a single mono repository.
 
 Flowise support different environment variables to configure your instance. You can specify the following variables in the `.env` file inside `packages/server` folder. Read [more](https://github.com/FlowiseAI/Flowise/blob/main/CONTRIBUTING.md#-env-variables)
 
+
+### Hosting Integration
+
+If you host the API and UI separately (for example using Render and Vercel) configure the environments as follows:
+
+```env
+# Render backend
+ALLOWED_ORIGINS=https://flowise-ui-liart.vercel.app
+FORCE_JSON_RESPONSES=true
+
+# Vercel frontend
+NEXT_PUBLIC_API_BASE_URL=https://flowise-ai-cqlx.onrender.com
+```
+
+### Testing
+
+Run these commands to verify CORS headers and JSON responses:
+
+```bash
+curl -X OPTIONS -I https://flowise-ai-cqlx.onrender.com/api/v1/auth/resolve
+curl https://flowise-ai-cqlx.onrender.com/api/v1/auth/resolve
+```
 ## 📖 Documentation
 
 [Flowise Docs](https://docs.flowiseai.com/)

@@ -42,7 +42,7 @@ const getChatflowStats = async (req: Request, res: Response, next: NextFunction)
                     feedbackTypeFilters = undefined
                 }
             } catch (e) {
-                return res.status(500).send(e)
+                return res.status(500).json({ message: e instanceof Error ? e.message : e })
             }
         }
         const apiResponse = await statsService.getChatflowStats(chatflowid, chatTypes, startDate, endDate, '', true, feedbackTypeFilters)

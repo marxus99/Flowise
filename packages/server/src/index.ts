@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express'
 import path from 'path'
 import http from 'http'
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
 import { DataSource, IsNull } from 'typeorm'
 import { MODE, Platform } from './Interface'
 import { getNodeModulesPackagePath, getEncryptionKey } from './utils'
@@ -34,7 +35,7 @@ import { Workspace } from './enterprise/database/entities/workspace.entity'
 import { Organization } from './enterprise/database/entities/organization.entity'
 import { GeneralRole, Role } from './enterprise/database/entities/role.entity'
 import { migrateApiKeysFromJsonToDb } from './utils/apiKey'
-import { ALLOWED_ORIGINS, isDev } from './config'
+import { ALLOWED_ORIGINS, FORCE_JSON_RESPONSES, isDev } from './config'
 
 declare global {
     namespace Express {
@@ -166,44 +167,36 @@ export class App {
         this.app.use(cookieParser())
 
         const allowedOrigins = ALLOWED_ORIGINS
-        this.app.use((req, res, next) => {
-            const origin = req.headers.origin as string | undefined
-            if (origin && allowedOrigins.includes(origin)) {
-                res.setHeader('Access-Control-Allow-Origin', origin)
-                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-                res.setHeader('Access-Control-Allow-Credentials', 'true')
-            }
-            if (req.method === 'OPTIONS') {
+        const corsOptions: cors.CorsOptions = {
+            origin: function (origin, callback) {
+                if (!origin) return callback(null, false)
+                if (allowedOrigins.includes(origin)) {
+                    return callback(null, true)
+                }
+                return callback(new Error('Not allowed by CORS'))
+            },
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+            optionsSuccessStatus: 204
+        }
+        this.app.use(cors(corsOptions))
+        if (FORCE_JSON_RESPONSES) {
+            this.app.use((req, res, next) => {
                 res.setHeader('Content-Type', 'application/json')
-                return res.status(204).end()
-            }
-            next()
-        })
+                next()
+            })
+        }
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
         this.app.use((req, res, next) => {
             const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins === '*') {
-                next()
-            } else {
+            if (allowedOrigins !== '*') {
                 const csp = `frame-ancestors ${allowedOrigins}`
                 res.setHeader('Content-Security-Policy', csp)
-                next()
             }
-        })
-
-        // (You can now remove your custom Access-Control-Allow-Credentials header middleware)        // Allow embedding from specified domains.
-        this.app.use((req, res, next) => {
-            const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins == '*') {
-                next()
-            } else {
-                const csp = `frame-ancestors ${allowedOrigins}`
-                res.setHeader('Content-Security-Policy', csp)
-                next()
-            }
+            next()
         })
 
         // Switch off the default 'X-Powered-By: Express' header

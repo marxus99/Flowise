@@ -162,7 +162,7 @@ const removeAllChatMessages = async (req: Request, res: Response, next: NextFunc
         const chatflowid = req.params.id
         const chatflow = await chatflowsService.getChatflowById(req.params.id)
         if (!chatflow) {
-            return res.status(404).send(`Chatflow ${req.params.id} not found`)
+            return res.status(404).json({ message: `Chatflow ${req.params.id} not found` })
         }
         const flowData = chatflow.flowData
         const parsedFlowData: IReactFlowObject = JSON.parse(flowData)
@@ -267,7 +267,7 @@ const removeAllChatMessages = async (req: Request, res: Response, next: NextFunc
                     isClearFromViewMessageDialog
                 )
             } catch (e) {
-                return res.status(500).send('Error clearing chat messages')
+                return res.status(500).json({ message: 'Error clearing chat messages' })
             }
 
             const deleteOptions: FindOptionsWhere<ChatMessage> = { chatflowid }

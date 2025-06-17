@@ -91,7 +91,7 @@ const createPrediction = async (req: Request, res: Response, next: NextFunction)
         } else {
             const isStreamingRequested = req.body.streaming === 'true' || req.body.streaming === true
             if (isStreamingRequested) {
-                return res.status(StatusCodes.FORBIDDEN).send(unauthorizedOriginError)
+                return res.status(StatusCodes.FORBIDDEN).json({ message: unauthorizedOriginError })
             }
             throw new InternalFlowiseError(StatusCodes.FORBIDDEN, unauthorizedOriginError)
         }

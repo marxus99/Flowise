@@ -85,7 +85,7 @@ const getChatflowByApiKey = async (req: Request, res: Response, next: NextFuncti
         }
         const apikey = await apiKeyService.getApiKey(req.params.apikey)
         if (!apikey) {
-            return res.status(401).send('Unauthorized')
+            return res.status(401).json({ message: 'Unauthorized' })
         }
         const apiResponse = await chatflowsService.getChatflowByApiKey(apikey.id, req.query.keyonly)
         return res.json(apiResponse)
@@ -182,7 +182,7 @@ const updateChatflow = async (req: Request, res: Response, next: NextFunction) =
         }
         const chatflow = await chatflowsService.getChatflowById(req.params.id)
         if (!chatflow) {
-            return res.status(404).send(`Chatflow ${req.params.id} not found`)
+            return res.status(404).json({ message: `Chatflow ${req.params.id} not found` })
         }
         const orgId = req.user?.activeOrganizationId
         if (!orgId) {
