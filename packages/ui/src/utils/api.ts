@@ -2,10 +2,29 @@ const baseUrl = process.env.NEXT_PUBLIC_USE_PROXY === 'true' ? '/api/flowise' : 
 
 export async function api<T>(endpoint: string, opts: RequestInit = {}) {
     const url = `${baseUrl}/${endpoint.replace(/^\/+/, '')}`
-    const res = await fetch(url, { ...opts, credentials: 'include' })
-    if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`HTTP ${res.status} – ${text || res.statusText}`)
+
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(opts.headers as Record<string, string>)
     }
-    return res.json() as Promise<T>
+
+    const res = await fetch(url, { ...opts, headers, credentials: 'include' })
+
+    let text = ''
+    try {
+        text = await res.text()
+    } catch {
+        text = ''
+    }
+
+    const isJson = res.headers.get('content-type')?.includes('application/json')
+    const data = isJson && text ? JSON.parse(text) : text
+
+    if (!res.ok) {
+        const message = res.status >= 500 ? 'Server error' : text || res.statusText
+        throw new Error(`HTTP ${res.status} – ${message}`)
+    }
+
+    return data as T
 }

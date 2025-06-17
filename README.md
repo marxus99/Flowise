@@ -182,6 +182,19 @@ Deploy Flowise self-hosted in your existing infrastructure, we support various [
 
 [Get Started with Flowise Cloud](https://flowiseai.com/)
 
+## Testing CORS
+
+Run the following command to verify that CORS headers are returned for the UI domain:
+
+```bash
+curl -i -X OPTIONS https://<your-flowise-domain>/api/v1/healthcheck \
+  -H "Origin: https://flowise-ui-liart.vercel.app" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: Content-Type"
+```
+
+You should receive a `204` response containing `Access-Control-Allow-Origin: https://flowise-ui-liart.vercel.app`.
+
 ## 🙋 Support
 
 Feel free to ask any questions, raise problems, and request new features in [discussion](https://github.com/FlowiseAI/Flowise/discussions)
