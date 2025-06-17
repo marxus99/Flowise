@@ -17,6 +17,7 @@ import { getAllowedIframeOrigins, sanitizeMiddleware } from './utils/XSS'
 import { Telemetry } from './utils/telemetry'
 import flowiseApiV1Router from './routes'
 import errorHandlerMiddleware from './middlewares/errors'
+import corsMiddleware from './middlewares/corsMiddleware'
 import { WHITELIST_URLS } from './utils/constants'
 import { initializeJwtCookieMiddleware, verifyToken } from './enterprise/middleware/passport'
 import { IdentityManager } from './IdentityManager'
@@ -165,20 +166,7 @@ export class App {
         // Parse cookies
         this.app.use(cookieParser())
 
-        const allowedOrigins = ['https://flowise-772e48kex-marcus-thomas-projects-90ba4767.vercel.app', 'http://localhost:3000']
-        this.app.use((req, res, next) => {
-            const origin = req.headers.origin as string | undefined
-            if (origin && allowedOrigins.includes(origin)) {
-                res.setHeader('Access-Control-Allow-Origin', origin)
-                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-                res.setHeader('Access-Control-Allow-Credentials', 'true')
-            }
-            if (req.method === 'OPTIONS') {
-                return res.status(204).end()
-            }
-            next()
-        })
+        this.app.use(corsMiddleware)
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
