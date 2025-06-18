@@ -1,7 +1,10 @@
-export const ALLOWED_ORIGINS = 
-(
+// cleaned up stray characters at top of file
+import dotenv from 'dotenv'
+dotenv.config()
+
+export const ALLOWED_ORIGINS = (
     process.env.CORS_ORIGINS ||
-        'https://flowise-772e48kex-marcus-thomas-projects-90ba4767.vercel.app,' +
+    'https://flowise-772e48kex-marcus-thomas-projects-90ba4767.vercel.app,' +
         'https://flowise-ui-liart.vercel.app,' +
         'http://localhost:3000'
 )

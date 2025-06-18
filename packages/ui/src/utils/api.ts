@@ -21,7 +21,14 @@ export async function api<T>(endpoint: string, opts: RequestInit = {}, retries =
             throw new Error(`Request failed ${res.status}`)
         }
         const contentType = res.headers.get('content-type') || ''
-
+        if (!contentType.includes('application/json')) {
+            console.error('Expected JSON, got:', contentType)
+            if (retries > 0) {
+                return api<T>(endpoint, opts, retries - 1)
+            }
+            throw new Error('Invalid JSON response')
+        }
+        return (await res.json()) as T
     } catch (err) {
         if (retries > 0) {
             return api<T>(endpoint, opts, retries - 1)
