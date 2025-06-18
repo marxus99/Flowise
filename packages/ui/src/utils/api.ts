@@ -20,12 +20,12 @@ export async function api<T>(endpoint: string, opts: RequestInit = {}, retries =
             }
             throw new Error(`HTTP ${res.status} – ${text || res.statusText}`)
         }
-        try {
+        const contentType = res.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
             return (await res.json()) as T
-        } catch (e) {
-            const text = await res.text().catch(() => '')
-            return text as any
         }
+        const text = await res.text().catch(() => '')
+        return text as any
     } catch (err) {
         if (retries > 0) {
             return api<T>(endpoint, opts, retries - 1)
