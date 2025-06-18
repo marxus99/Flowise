@@ -14,18 +14,21 @@ export async function api<T>(endpoint: string, opts: RequestInit = {}, retries =
             credentials: 'include'
         })
         if (!res.ok) {
-            const text = await res.text().catch(() => '')
+            console.error('Bad response:', res.status, res.statusText)
             if (retries > 0) {
                 return api<T>(endpoint, opts, retries - 1)
             }
-            throw new Error(`HTTP ${res.status} – ${text || res.statusText}`)
+            throw new Error(`Request failed ${res.status}`)
         }
-        try {
-            return (await res.json()) as T
-        } catch (e) {
-            const text = await res.text().catch(() => '')
-            return text as any
+        const contentType = res.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) {
+            console.error('Expected JSON, got:', contentType)
+            if (retries > 0) {
+                return api<T>(endpoint, opts, retries - 1)
+            }
+            throw new Error('Invalid JSON response')
         }
+        return (await res.json()) as T
     } catch (err) {
         if (retries > 0) {
             return api<T>(endpoint, opts, retries - 1)
