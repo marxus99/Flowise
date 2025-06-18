@@ -35,6 +35,7 @@ import { Organization } from './enterprise/database/entities/organization.entity
 import { GeneralRole, Role } from './enterprise/database/entities/role.entity'
 import { migrateApiKeysFromJsonToDb } from './utils/apiKey'
 import { ALLOWED_ORIGINS, isDev } from './config'
+import corsMiddleware from './middlewares/cors'
 
 declare global {
     namespace Express {
@@ -165,21 +166,7 @@ export class App {
         // Parse cookies
         this.app.use(cookieParser())
 
-        const allowedOrigins = ALLOWED_ORIGINS
-        this.app.use((req, res, next) => {
-            const origin = req.headers.origin as string | undefined
-            if (origin && allowedOrigins.includes(origin)) {
-                res.setHeader('Access-Control-Allow-Origin', origin)
-                res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-                res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-                res.setHeader('Access-Control-Allow-Credentials', 'true')
-            }
-            if (req.method === 'OPTIONS') {
-                res.setHeader('Content-Type', 'application/json')
-                return res.status(204).end()
-            }
-            next()
-        })
+        this.app.use(corsMiddleware)
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
