@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) check out your code
+      - uses: actions/checkout@v3
+
+      # 2) set up Node and pnpm caching
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: pnpm
+
+      # 3) enable corepack so pnpm is available
+      - name: Enable Corepack
+        run: corepack enable
+
+      # 4) remove any corrupted lockfile before install
+      - name: Prune bad lockfile
+        run: rm -f pnpm-lock.yaml
+
+      # 5) install (and regenerate) a fresh lockfile
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # 6) build & test
+      - name: Build
+        run: pnpm run build
+
+      - name: Test
+        run: pnpm run test
+
+        
