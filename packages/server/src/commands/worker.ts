@@ -8,6 +8,7 @@ import { CachePool } from '../CachePool'
 import { QueueEvents, QueueEventsListener } from 'bullmq'
 import { AbortControllerPool } from '../AbortControllerPool'
 import { UsageCacheManager } from '../UsageCacheManager'
+import { DataSource } from 'typeorm'
 
 interface CustomListener extends QueueEventsListener {
     abort: (args: { id: string }, id: string) => void
@@ -55,7 +56,14 @@ export default class Worker extends BaseCommand {
         process.stdin.resume()
     }
 
-    async prepareData() {
+    async prepareData(): Promise<{
+        appDataSource: DataSource
+        telemetry: Telemetry
+        componentNodes: any
+        cachePool: CachePool
+        abortControllerPool: AbortControllerPool
+        usageCacheManager: UsageCacheManager
+    }> {
         // Init database
         const appDataSource = getDataSource()
         await appDataSource.initialize()

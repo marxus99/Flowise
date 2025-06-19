@@ -347,7 +347,7 @@ const patchDeleteRows = async (ids: string[] = []) => {
     }
 }
 
-export default {
+const datasetService: any = {
     getAllDatasets,
     getDataset,
     createDataset,
@@ -359,3 +359,5 @@ export default {
     patchDeleteRows,
     reorderDatasetRow
 }
+
+export default datasetService

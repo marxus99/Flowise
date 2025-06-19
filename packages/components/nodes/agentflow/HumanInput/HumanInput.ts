@@ -1,7 +1,6 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import {
     ICommonObject,
-    ICondition,
     IHumanInput,
     INode,
     INodeData,
@@ -152,7 +151,11 @@ class HumanInput_Agentflow implements INode {
         const isStreamable = options.sseStreamer !== undefined
 
         if (humanInput) {
-            const outcomes: Partial<ICondition>[] & Partial<IHumanInput>[] = [
+            interface IHumanInputWithFulfillment extends IHumanInput {
+                isFulfilled?: boolean
+            }
+
+            const outcomes: IHumanInputWithFulfillment[] = [
                 {
                     type: 'proceed',
                     startNodeId: humanInput?.startNodeId,

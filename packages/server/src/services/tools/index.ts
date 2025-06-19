@@ -138,7 +138,7 @@ const importTools = async (newTools: Partial<Tool>[], queryRunner?: QueryRunner)
     }
 }
 
-export default {
+const toolsService: any = {
     createTool,
     deleteTool,
     getAllTools,
@@ -146,3 +146,5 @@ export default {
     updateTool,
     importTools
 }
+
+export default toolsService

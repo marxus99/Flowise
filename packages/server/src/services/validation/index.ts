@@ -206,45 +206,47 @@ const checkFlowValidation = async (flowId: string, workspaceId?: string): Promis
                             const componentInputParams = componentNodes[componentName].inputs
 
                             // Validate each required input parameter in the component
-                            for (const componentParam of componentInputParams) {
-                                // Skip validation if the parameter has show condition that doesn't match
-                                if (componentParam.show) {
-                                    let shouldShow = true
-                                    for (const [key, value] of Object.entries(componentParam.show)) {
-                                        if (configValue[key] !== value) {
-                                            shouldShow = false
-                                            break
+                            if (componentInputParams) {
+                                for (const componentParam of componentInputParams) {
+                                    // Skip validation if the parameter has show condition that doesn't match
+                                    if (componentParam.show) {
+                                        let shouldShow = true
+                                        for (const [key, value] of Object.entries(componentParam.show)) {
+                                            if (configValue[key] !== value) {
+                                                shouldShow = false
+                                                break
+                                            }
+                                        }
+                                        if (!shouldShow) continue
+                                    }
+
+                                    // Skip validation if the parameter has hide condition that matches
+                                    if (componentParam.hide) {
+                                        let shouldHide = true
+                                        for (const [key, value] of Object.entries(componentParam.hide)) {
+                                            if (configValue[key] !== value) {
+                                                shouldHide = false
+                                                break
+                                            }
+                                        }
+                                        if (shouldHide) continue
+                                    }
+
+                                    if (!componentParam.optional) {
+                                        const nestedValue = configValue[componentParam.name]
+                                        if (nestedValue === undefined || nestedValue === null || nestedValue === '') {
+                                            nodeIssues.push(`${param.label} configuration: ${componentParam.label} is required`)
                                         }
                                     }
-                                    if (!shouldShow) continue
                                 }
 
-                                // Skip validation if the parameter has hide condition that matches
-                                if (componentParam.hide) {
-                                    let shouldHide = true
-                                    for (const [key, value] of Object.entries(componentParam.hide)) {
-                                        if (configValue[key] !== value) {
-                                            shouldHide = false
-                                            break
-                                        }
-                                    }
-                                    if (shouldHide) continue
-                                }
-
-                                if (!componentParam.optional) {
-                                    const nestedValue = configValue[componentParam.name]
-                                    if (nestedValue === undefined || nestedValue === null || nestedValue === '') {
-                                        nodeIssues.push(`${param.label} configuration: ${componentParam.label} is required`)
+                                // Check for credential requirement in the component
+                                if (componentNodes[componentName]?.credential && !componentNodes[componentName]?.credential?.optional) {
+                                    if (!configValue.FLOWISE_CREDENTIAL_ID && !configValue.credential) {
+                                        nodeIssues.push(`${param.label} requires a credential`)
                                     }
                                 }
-                            }
-
-                            // Check for credential requirement in the component
-                            if (componentNodes[componentName].credential && !componentNodes[componentName].credential.optional) {
-                                if (!configValue.FLOWISE_CREDENTIAL_ID && !configValue.credential) {
-                                    nodeIssues.push(`${param.label} requires a credential`)
-                                }
-                            }
+                            } // Close the if (componentInputParams) block
                         }
                     }
                 }

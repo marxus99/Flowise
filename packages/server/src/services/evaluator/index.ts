@@ -88,10 +88,12 @@ const deleteEvaluator = async (id: string) => {
     }
 }
 
-export default {
+const evaluatorService: any = {
     getAllEvaluators,
     getEvaluator,
     createEvaluator,
     updateEvaluator,
     deleteEvaluator
 }
+
+export default evaluatorService

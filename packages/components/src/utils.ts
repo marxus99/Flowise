@@ -1184,16 +1184,16 @@ export const handleDocumentLoaderMetadata = (
         omitMetadataKeys = _omitMetadataKeys.split(',').map((key) => key.trim())
     }
 
-    metadata = parseDocumentLoaderMetadata(metadata)
+    const parsedMetadata = parseDocumentLoaderMetadata(metadata)
 
     return docs.map((doc) => ({
         ...doc,
         metadata:
             _omitMetadataKeys === '*'
-                ? metadata
+                ? parsedMetadata
                 : omit(
                       {
-                          ...metadata,
+                          ...parsedMetadata,
                           ...doc.metadata,
                           ...(sourceIdKey ? { [sourceIdKey]: doc.metadata[sourceIdKey] || sourceIdKey } : undefined)
                       },

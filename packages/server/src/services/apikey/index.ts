@@ -224,7 +224,7 @@ const verifyApiKey = async (paramApiKey: string): Promise<string> => {
     }
 }
 
-export default {
+const apiKeyService: any = {
     createApiKey,
     deleteApiKey,
     getAllApiKeys,
@@ -233,3 +233,5 @@ export default {
     getApiKey,
     importKeys
 }
+
+export default apiKeyService

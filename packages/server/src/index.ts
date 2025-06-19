@@ -164,7 +164,7 @@ export class App {
         this.app.set('trust proxy', true) // Trust all proxies
 
         // Parse cookies
-        this.app.use(cookieParser())
+        this.app.use(cookieParser() as any)
 
         this.app.use(corsMiddleware)
 
