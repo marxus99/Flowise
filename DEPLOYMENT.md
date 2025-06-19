@@ -37,3 +37,4 @@ curl -i https://flowise-ui-deploy.vercel.app/api/chatflows \
 ```
 
 Both commands should return a `204` response for the preflight request and JSON for the real request.
+# Deployment Thu Jun 19 13:18:43 MST 2025
