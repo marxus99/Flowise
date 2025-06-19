@@ -3,11 +3,6 @@
     "outputDirectory": "packages/ui/build",
     "installCommand": "pnpm install --frozen-lockfile",
     "framework": null,
-    "functions": {
-        "packages/ui/build/**": {
-            "includeFiles": "packages/ui/build/**"
-        }
-    },
     "rewrites": [
         {
             "source": "/api/:path*",
