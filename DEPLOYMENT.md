@@ -9,7 +9,7 @@ Set the following variables on the Render service:
 | Variable | Description |
 | -------- | ----------- |
 | `PORT` | Port the Express server listens on (default `3000`). |
-| `CORS_ORIGINS` | Allowed comma-separated origins. Example: `https://flowise-ui-liart.vercel.app,http://localhost:3000`. |
+| `CORS_ORIGINS` | Allowed comma-separated origins. Example: `https://flowise-ui-deploy.vercel.app,http://localhost:3000`. |
 | `DATABASE_PATH` | Location for the SQLite database. |
 | `SECRETKEY_PATH` | Path used to store encryption keys. |
 | `LOG_PATH` | Directory for application logs. |
@@ -27,13 +27,13 @@ After deployment, run the following commands from your local machine to test COR
 
 ```bash
 # Preflight
-curl -i -X OPTIONS https://flowise-ui-liart.vercel.app/api/chatflows \
-  -H "Origin: https://flowise-ui-liart.vercel.app" \
+curl -i -X OPTIONS https://flowise-ui-deploy.vercel.app/api/chatflows \
+  -H "Origin: https://flowise-ui-deploy.vercel.app" \
   -H "Access-Control-Request-Method: GET"
 
 # Actual request
-curl -i https://flowise-ui-liart.vercel.app/api/chatflows \
-  -H "Origin: https://flowise-ui-liart.vercel.app"
+curl -i https://flowise-ui-deploy.vercel.app/api/chatflows \
+  -H "Origin: https://flowise-ui-deploy.vercel.app"
 ```
 
 Both commands should return a `204` response for the preflight request and JSON for the real request.
