@@ -13,22 +13,23 @@ jobs:
       # 1) Check out your repo
       - uses: actions/checkout@v3
 
-      # 2) Set up Node.js and cache pnpm deps
+      # 2) Install pnpm
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.0.4
+
+      # 3) Set up Node.js and cache pnpm deps
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: pnpm
-          # if you use a pnpm lockfile in sub-dirs, adjust this glob
-          cache-dependency-path: '**/pnpm-lock.yaml'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
-      # 3) Enable Corepack to make pnpm available
-      - name: Enable Corepack (and pnpm)
-        run: corepack enable
-
-      # 4) Install dependencies (this will now find pnpm)
+      # 4) Install dependencies
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # 5) Build & Test
       - name: Build

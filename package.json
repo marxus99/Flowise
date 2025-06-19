@@ -8,8 +8,8 @@
     ],
     "scripts": {
         "build": "turbo run build",
-        "build:components": "cd packages/components && npm run build",
-        "build:ui": "cd packages/ui && npm run build",
+        "build:components": "cd packages/components && pnpm run build",
+        "build:ui": "cd packages/ui && pnpm run build",
         "build-force": "pnpm clean && turbo run build --force",
         "dev": "turbo run dev --parallel --no-cache",
         "start": "run-script-os",
@@ -64,6 +64,7 @@
             "sqlite3"
         ],
         "overrides": {
+            "@browserbasehq/stagehand": "^1.0.0",
             "axios": "1.7.9",
             "body-parser": "2.0.2",
             "braces": "3.0.3",
@@ -90,7 +91,8 @@
         "@langchain/core": "0.3.37",
         "@qdrant/openapi-typescript-fetch": "1.2.6",
         "openai": "4.96.0",
-        "protobufjs": "7.4.0"
+        "protobufjs": "7.4.0",
+        "zod": "^3.23.8"
     },
     "eslintIgnore": [
         "**/dist",
