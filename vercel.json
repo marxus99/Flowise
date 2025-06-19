@@ -1,5 +1,5 @@
 {
-    "buildCommand": "pnpm run build:components && pnpm run build:ui", 
+    "buildCommand": "pnpm run build:components && pnpm run build:ui",
     "outputDirectory": "packages/ui/build",
     "installCommand": "pnpm install --frozen-lockfile",
     "framework": null,
