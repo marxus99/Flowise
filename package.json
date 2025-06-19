@@ -4,14 +4,12 @@
     "private": true,
     "homepage": "https://flowiseai.com",
     "workspaces": [
-        "packages/*",
-        "flowise",
-        "ui",
-        "components",
-        "api-documentation"
+        "packages/*"
     ],
     "scripts": {
         "build": "turbo run build",
+        "build:components": "cd packages/components && npm run build",
+        "build:ui": "cd packages/ui && npm run build",
         "build-force": "pnpm clean && turbo run build --force",
         "dev": "turbo run dev --parallel --no-cache",
         "start": "run-script-os",

@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express'
+import { Request, Response, NextFunction, RequestHandler } from 'express'
 import { ALLOWED_ORIGINS } from '../config'
 
-export default function corsMiddleware(req: Request, res: Response, next: NextFunction) {
+const corsMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin as string | undefined
     if (origin && ALLOWED_ORIGINS.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin)
@@ -18,3 +18,5 @@ export default function corsMiddleware(req: Request, res: Response, next: NextFu
 
     next()
 }
+
+export default corsMiddleware
