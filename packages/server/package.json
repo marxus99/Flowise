@@ -20,7 +20,7 @@
         "commands": "./dist/commands"
     },
     "scripts": {
-        "build": "tsc && rimraf dist/enterprise/emails && gulp",
+        "build": "tsc && rimraf dist/enterprise/emails && gulp && npx oclif manifest",
         "start": "run-script-os",
         "clean": "rimraf dist",
         "nuke": "rimraf dist node_modules .turbo",
