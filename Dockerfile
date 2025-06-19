@@ -31,7 +31,7 @@ COPY . .
 
 RUN pnpm install
 
-RUN pnpm build
+RUN pnpm --filter flowise-ui build
 
 EXPOSE 3000
 
