@@ -36,6 +36,7 @@ import { GeneralRole, Role } from './enterprise/database/entities/role.entity'
 import { migrateApiKeysFromJsonToDb } from './utils/apiKey'
 import { ALLOWED_ORIGINS, isDev } from './config'
 import corsMiddleware from './middlewares/cors'
+import { execSync } from 'child_process'
 
 declare global {
     namespace Express {
@@ -369,6 +370,13 @@ export async function start(): Promise<void> {
 
     const host = process.env.HOST
     const port = parseInt(process.env.PORT || '', 10) || 3000
+    // kill any process listening on this port before starting
+    try {
+        execSync(`npx kill-port ${port}`)
+        logger.info(`[server]: Existing process on port ${port} killed`)
+    } catch (error) {
+        // Port was already free or kill-port failed, continue anyway
+    }
     const server = http.createServer(serverApp.app)
 
     await serverApp.initDatabase()

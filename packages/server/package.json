@@ -25,7 +25,7 @@
         "clean": "rimraf dist",
         "nuke": "rimraf dist node_modules .turbo",
         "start:windows": "cd bin && run start",
-        "start:default": "cd bin && ./run start",
+        "start:default": "npx kill-port 3000 && cd bin && ./run start",
         "start-worker:windows": "cd bin && run worker",
         "start-worker:default": "cd bin && ./run worker",
         "dev": "nodemon",
@@ -143,7 +143,8 @@
         "typeorm": "^0.3.6",
         "uuid": "^9.0.1",
         "winston": "^3.9.0",
-        "winston-daily-rotate-file": "^5.0.0"
+        "winston-daily-rotate-file": "^5.0.0",
+        "kill-port": "^1.6.1"
     },
     "devDependencies": {
         "@types/content-disposition": "0.5.8",
