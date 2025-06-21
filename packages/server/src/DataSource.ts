@@ -12,7 +12,18 @@ import logger from './utils/logger'
 
 let appDataSource: DataSource
 
-export const init = async (): Promise<void> => {
+const parsePostgresUrl = (url: string) => {
+    const urlObj = new URL(url)
+    return {
+        host: urlObj.hostname,
+        port: parseInt(urlObj.port) || 5432,
+        username: urlObj.username,
+        password: urlObj.password,
+        database: urlObj.pathname.slice(1) // Remove leading slash
+    }
+}
+
+export const init = async (): Promise<DataSource> => {
     let homePath
     let flowisePath = path.join(getUserHome(), '.flowise')
     if (!fs.existsSync(flowisePath)) {
@@ -62,14 +73,34 @@ export const init = async (): Promise<void> => {
                 ssl: getDatabaseSSLFromEnv()
             })
             break
-        case 'postgres':
+        case 'postgres': {
+            let postgresConfig
+            if (process.env.DATABASE_URL) {
+                // Parse DATABASE_URL for services like Render, Heroku, etc.
+                postgresConfig = parsePostgresUrl(process.env.DATABASE_URL)
+                logger.info(`🔗 [server]: Using DATABASE_URL for PostgreSQL connection to ${postgresConfig.host}:${postgresConfig.port}`)
+            } else {
+                // Use individual environment variables
+                postgresConfig = {
+                    host: process.env.DATABASE_HOST,
+                    port: parseInt(process.env.DATABASE_PORT || '5432'),
+                    username: process.env.DATABASE_USER,
+                    password: process.env.DATABASE_PASSWORD,
+                    database: process.env.DATABASE_NAME
+                }
+            }
+
+            if (!postgresConfig.host || !postgresConfig.username || !postgresConfig.password || !postgresConfig.database) {
+                throw new Error('PostgreSQL configuration incomplete: Missing required connection parameters')
+            }
+
             appDataSource = new DataSource({
                 type: 'postgres',
-                host: process.env.DATABASE_HOST,
-                port: parseInt(process.env.DATABASE_PORT || '5432'),
-                username: process.env.DATABASE_USER,
-                password: process.env.DATABASE_PASSWORD,
-                database: process.env.DATABASE_NAME,
+                host: postgresConfig.host,
+                port: postgresConfig.port,
+                username: postgresConfig.username,
+                password: postgresConfig.password,
+                database: postgresConfig.database,
                 ssl: getDatabaseSSLFromEnv(),
                 synchronize: false,
                 migrationsRun: false,
@@ -87,6 +118,7 @@ export const init = async (): Promise<void> => {
                 applicationName: 'Flowise'
             })
             break
+        }
         default:
             homePath = process.env.DATABASE_PATH ?? flowisePath
             appDataSource = new DataSource({
@@ -99,11 +131,12 @@ export const init = async (): Promise<void> => {
             })
             break
     }
+    return appDataSource
 }
 
 export function getDataSource(): DataSource {
     if (appDataSource === undefined) {
-        init()
+        throw new Error('DataSource has not been initialized. Please call init() first.')
     }
     return appDataSource
 }
@@ -116,6 +149,14 @@ export const getDatabaseSSLFromEnv = () => {
         }
     } else if (process.env.DATABASE_SSL === 'true') {
         return true
+    } else if (process.env.DATABASE_SSL === 'false') {
+        return false
     }
+
+    // Default to requiring SSL for external database connections (non-localhost)
+    if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')) {
+        return { rejectUnauthorized: false } // Most cloud providers use self-signed certs
+    }
+
     return undefined
 }

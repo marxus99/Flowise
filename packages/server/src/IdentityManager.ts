@@ -32,6 +32,7 @@ import { StripeManager } from './StripeManager'
 import { UsageCacheManager } from './UsageCacheManager'
 import { GeneralErrorMessage, LICENSE_QUOTAS } from './utils/constants'
 import { getRunningExpressApp } from './utils/getRunningExpressApp'
+import logger from './utils/logger'
 import { ENTERPRISE_FEATURE_FLAGS } from './utils/quotaUsage'
 import Stripe from 'stripe'
 
@@ -161,7 +162,13 @@ export class IdentityManager {
             const loginMethodService = new LoginMethodService()
             let queryRunner
             try {
-                queryRunner = getRunningExpressApp().AppDataSource.createQueryRunner()
+                const runningApp = getRunningExpressApp()
+                if (!runningApp || !runningApp.AppDataSource) {
+                    logger.error('❌ [IdentityManager]: AppDataSource not available, skipping SSO initialization')
+                    this.initializeEmptySSO(app)
+                    return
+                }
+                queryRunner = runningApp.AppDataSource.createQueryRunner()
                 await queryRunner.connect()
                 let organizationId = undefined
                 if (this.getPlatformType() === Platform.ENTERPRISE) {
@@ -183,6 +190,10 @@ export class IdentityManager {
                         }
                     }
                 }
+            } catch (error) {
+                logger.error(`❌ [IdentityManager]: Error during SSO initialization: ${error}`)
+                this.initializeEmptySSO(app)
+                return
             } finally {
                 if (queryRunner) await queryRunner.release()
             }

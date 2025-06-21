@@ -91,8 +91,13 @@ export class App {
             logger.info('🔄 [server]: Database migrations completed successfully')
 
             // Initialize Identity Manager
-            this.identityManager = await IdentityManager.getInstance()
-            logger.info('🔐 [server]: Identity Manager initialized successfully')
+            try {
+                this.identityManager = await IdentityManager.getInstance()
+                logger.info('🔐 [server]: Identity Manager initialized successfully')
+            } catch (error) {
+                logger.error(`❌ [server]: Error initializing Identity Manager: ${error}`)
+                throw error
+            }
 
             // Initialize nodes pool
             this.nodesPool = new NodesPool()
@@ -152,6 +157,7 @@ export class App {
             logger.info('🎉 [server]: All initialization steps completed successfully!')
         } catch (error) {
             logger.error('❌ [server]: Error during Data Source initialization:', error)
+            throw error
         }
     }
 
@@ -290,7 +296,11 @@ export class App {
         })
 
         // this is for SSO and must be after the JWT cookie middleware
-        await this.identityManager.initializeSSO(this.app)
+        if (this.identityManager) {
+            await this.identityManager.initializeSSO(this.app)
+        } else {
+            logger.error('❌ [server]: Identity Manager not initialized, skipping SSO initialization')
+        }
 
         if (process.env.ENABLE_METRICS === 'true') {
             switch (process.env.METRICS_PROVIDER) {
