@@ -15,7 +15,6 @@ import { AbortControllerPool } from './AbortControllerPool'
 import { RateLimiterManager } from './utils/rateLimit'
 import { getAllowedIframeOrigins, sanitizeMiddleware } from './utils/XSS'
 import { Telemetry } from './utils/telemetry'
-import flowiseApiV1Router from './routes'
 import errorHandlerMiddleware from './middlewares/errors'
 import { WHITELIST_URLS } from './utils/constants'
 import { initializeJwtCookieMiddleware, verifyToken } from './enterprise/middleware/passport'
@@ -35,7 +34,6 @@ import { Organization } from './enterprise/database/entities/organization.entity
 import { GeneralRole, Role } from './enterprise/database/entities/role.entity'
 import { migrateApiKeysFromJsonToDb } from './utils/apiKey'
 import { ALLOWED_ORIGINS, isDev } from './config'
-import corsMiddleware from './middlewares/cors'
 import { execSync } from 'child_process'
 
 declare global {
@@ -167,13 +165,32 @@ export class App {
         this.app.use(express.json({ limit: flowise_file_size_limit }))
         this.app.use(express.urlencoded({ limit: flowise_file_size_limit, extended: true }))
 
-        // Enhanced trust proxy settings for load balancer
-        this.app.set('trust proxy', true) // Trust all proxies
+        // Enhanced trust proxy settings for Render's load balancer
+        // Render uses multiple proxy layers, so we need to trust them all
+        this.app.set('trust proxy', true)
 
         // Parse cookies
         this.app.use(cookieParser() as any)
 
-        this.app.use(corsMiddleware)
+        // Add request logging middleware for debugging 502 errors
+        this.app.use((req, res, next) => {
+            const startTime = Date.now()
+
+            // Log request details
+            console.log(`📨 [${new Date().toISOString()}] ${req.method} ${req.url}`, {
+                userAgent: req.get('User-Agent'),
+                clientIP: req.ip,
+                origin: req.get('Origin') || 'no-origin'
+            })
+
+            // Log response details when finished
+            res.on('finish', () => {
+                const duration = Date.now() - startTime
+                console.log(`📤 [${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`)
+            })
+
+            next()
+        })
 
         // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
@@ -324,7 +341,46 @@ export class App {
             }
         }
 
-        this.app.use('/api/v1', flowiseApiV1Router)
+        // ----------------------------------------
+        // Health check endpoints for Render monitoring
+        // ----------------------------------------
+        this.app.get('/health', (req, res) => {
+            res.status(200).json({
+                status: 'healthy',
+                timestamp: new Date().toISOString(),
+                uptime: Math.floor(process.uptime()),
+                memory: {
+                    used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+                },
+                version: process.env.npm_package_version || '1.0.0'
+            })
+        })
+
+        this.app.get('/ready', (req, res) => {
+            if (this.AppDataSource?.isInitialized) {
+                res.status(200).json({
+                    status: 'ready',
+                    database: 'connected',
+                    timestamp: new Date().toISOString()
+                })
+            } else {
+                res.status(503).json({
+                    status: 'not ready',
+                    database: 'disconnected',
+                    timestamp: new Date().toISOString()
+                })
+            }
+        })
+
+        // Root endpoint that responds to basic GET requests (for Render health checks)
+        this.app.get('/', (req, res) => {
+            res.status(200).json({
+                message: 'Flowise AI Server is running',
+                status: 'ok',
+                timestamp: new Date().toISOString()
+            })
+        })
 
         // ----------------------------------------
         // Configure number of proxies in Host Environment
@@ -378,24 +434,47 @@ let serverApp: App | undefined
 export async function start(): Promise<void> {
     serverApp = new App()
 
-    const host = process.env.HOST
+    // For Render deployment, bind to 0.0.0.0 and use Render's PORT env var
+    const host = process.env.HOST || '0.0.0.0'
     const port = parseInt(process.env.PORT || '', 10) || 3000
-    // kill any process listening on this port before starting
-    try {
-        execSync(`npx kill-port ${port}`)
-        logger.info(`[server]: Existing process on port ${port} killed`)
-    } catch (error) {
-        // Port was already free or kill-port failed, continue anyway
+
+    // Don't kill ports in production (causes issues on Render)
+    if (process.env.NODE_ENV !== 'production') {
+        try {
+            execSync(`npx kill-port ${port}`)
+            logger.info(`[server]: Existing process on port ${port} killed`)
+        } catch (error) {
+            // Port was already free or kill-port failed, continue anyway
+        }
     }
+
     const server = http.createServer(serverApp.app)
+
+    // Add error handling for server startup
+    server.on('error', (error: any) => {
+        if (error.code === 'EADDRINUSE') {
+            logger.error(`❌ [server]: Port ${port} is already in use`)
+            process.exit(1)
+        } else {
+            logger.error(`❌ [server]: Server error: ${error.message}`)
+            process.exit(1)
+        }
+    })
 
     await serverApp.initDatabase()
     await serverApp.config()
 
     server.listen(port, host, () => {
-        logger.info(
-            `[server] listening at ${host ? 'http://' + host : ''}:${port} • allowed origins: ${isDev ? '* (dev mode)' : ALLOWED_ORIGINS}`
-        )
+        logger.info(`✅ [server] listening at ${host}:${port} • allowed origins: ${isDev ? '* (dev mode)' : ALLOWED_ORIGINS}`)
+    })
+
+    // Graceful shutdown for Render
+    process.on('SIGTERM', () => {
+        logger.info('📴 [server]: SIGTERM received, shutting down gracefully')
+        server.close(() => {
+            logger.info('📴 [server]: HTTP server closed')
+            process.exit(0)
+        })
     })
 }
 
