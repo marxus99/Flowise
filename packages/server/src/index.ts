@@ -177,7 +177,7 @@ export class App {
             const startTime = Date.now()
 
             // Log request details
-            console.log(`📨 [${new Date().toISOString()}] ${req.method} ${req.url}`, {
+            logger.info(`📨 [${new Date().toISOString()}] ${req.method} ${req.url}`, {
                 userAgent: req.get('User-Agent'),
                 clientIP: req.ip,
                 origin: req.get('Origin') || 'no-origin'
@@ -186,7 +186,7 @@ export class App {
             // Log response details when finished
             res.on('finish', () => {
                 const duration = Date.now() - startTime
-                console.log(`📤 [${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`)
+                logger.info(`📤 [${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`)
             })
 
             next()

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
+import logger from '../../utils/logger'
 
 // we need eslint because we have to pass next arg for the error middleware
 // eslint-disable-next-line
@@ -9,7 +10,7 @@ async function errorHandlerMiddleware(err: any, req: Request, res: Response, nex
     if (message.includes('401 Incorrect API key provided')) message = '401 Invalid model key or Incorrect local model configuration.'
 
     // Enhanced error logging for production debugging
-    console.error(`🚨 [Error Handler] ${statusCode}: ${message}`, {
+    logger.error(`🚨 [Error Handler] ${statusCode}: ${message}`, {
         url: req.url,
         method: req.method,
         userAgent: req.get('User-Agent'),
