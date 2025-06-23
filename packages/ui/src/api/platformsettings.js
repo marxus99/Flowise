@@ -1,5 +1,6 @@
 const getSettings = async () => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/settings`, {
+    const baseURL = import.meta.env.VITE_API_BASE_URL || window.location.origin
+    const response = await fetch(`${baseURL}/api/v1/settings`, {
         credentials: 'include'
     })
     const data = await response.json()

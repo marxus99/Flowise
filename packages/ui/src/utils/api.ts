@@ -1,4 +1,5 @@
-const baseUrl = process.env.NEXT_PUBLIC_USE_PROXY === 'true' ? '/api/flowise' : 'https://flowise-ai-cqlx.onrender.com/api/v1'
+// @ts-ignore
+const baseUrl = (import.meta as any).env?.VITE_USE_PROXY === 'true' ? '/api/flowise' : 'https://flowise-ai-cqlx.onrender.com/api/v1'
 
 export async function api<T>(endpoint: string, opts: RequestInit = {}, retries = 1) {
     const url = `${baseUrl}/${endpoint.replace(/^\/+/, '')}`
