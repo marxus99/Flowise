@@ -39,6 +39,19 @@ export const Input = ({ inputParam, value, nodes, edges, nodeId, onChange, disab
         }
     }
 
+    const getAutoComplete = (type, name) => {
+        if (type === 'password') {
+            return 'current-password'
+        }
+        if (type === 'email' || name?.toLowerCase().includes('email')) {
+            return 'email'
+        }
+        if (name?.toLowerCase().includes('username') || name?.toLowerCase().includes('user')) {
+            return 'username'
+        }
+        return 'off'
+    }
+
     useEffect(() => {
         if (!disabled && nodes && edges && nodeId && inputParam) {
             const nodesForVariable = inputParam?.acceptVariable ? getAvailableNodesForVariable(nodes, edges, nodeId, inputParam.id) : []
@@ -66,6 +79,7 @@ export const Input = ({ inputParam, value, nodes, edges, nodeId, onChange, disab
                         minRows={inputParam.rows ?? 1}
                         value={myValue}
                         name={inputParam.name}
+                        autoComplete={getAutoComplete(inputParam.type, inputParam.name)}
                         onChange={(e) => {
                             setMyValue(e.target.value)
                             onChange(e.target.value)
@@ -102,6 +116,7 @@ export const Input = ({ inputParam, value, nodes, edges, nodeId, onChange, disab
                         rows={inputParam.rows ?? 1}
                         value={myValue}
                         name={inputParam.name}
+                        autoComplete={getAutoComplete(inputParam.type, inputParam.name)}
                         onChange={(e) => {
                             setMyValue(e.target.value)
                             onChange(e.target.value)

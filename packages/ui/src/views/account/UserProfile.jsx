@@ -216,6 +216,7 @@ const UserProfile = () => {
                                         size='small'
                                         placeholder='Your login Id'
                                         name='name'
+                                        autoComplete='email'
                                         onChange={(e) => setEmailVal(e.target.value)}
                                         value={emailVal}
                                     />
@@ -234,6 +235,7 @@ const UserProfile = () => {
                                         size='small'
                                         placeholder='Your Name'
                                         name='name'
+                                        autoComplete='name'
                                         onChange={(e) => setUsernameVal(e.target.value)}
                                         value={usernameVal}
                                     />
@@ -251,6 +253,7 @@ const UserProfile = () => {
                                         fullWidth
                                         size='small'
                                         name='new_password'
+                                        autoComplete='new-password'
                                         onChange={(e) => setNewPasswordVal(e.target.value)}
                                         value={newPasswordVal}
                                     />
@@ -274,6 +277,7 @@ const UserProfile = () => {
                                         fullWidth
                                         size='small'
                                         name='new_cnf_password'
+                                        autoComplete='new-password'
                                         onChange={(e) => setConfirmPasswordVal(e.target.value)}
                                         value={confirmPasswordVal}
                                     />
