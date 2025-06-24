@@ -1,39 +1,41 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+    push:
+        branches: [main]
+    pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-      # 1) Check out your repo
-      - uses: actions/checkout@v3
+        steps:
+            # 1) Check out your repo
+            - uses: actions/checkout@v3
 
-      # 2) Install pnpm
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9.0.4
+            # 2) Install pnpm
+            - name: Install pnpm
+              uses: pnpm/action-setup@v3
+              with:
+                  version: 9.0.4
 
-      # 3) Set up Node.js and cache pnpm deps
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: pnpm
-          cache-dependency-path: 'pnpm-lock.yaml'
+            # 3) Set up Node.js and cache pnpm deps
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 18
+                  cache: pnpm
+                  cache-dependency-path: 'pnpm-lock.yaml'
 
-      # 4) Install dependencies
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+            # 4) Install dependencies
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
 
-      # 5) Build & Test
-      - name: Build
-        run: pnpm run build
+            # 5) Build & Test
+            - name: Build
+              run: pnpm run build
 
-      - name: Test
-        run: pnpm run test
+            - name: Test
+              run: pnpm run test
+              env:
+                  NODE_OPTIONS: '--experimental-vm-modules'
