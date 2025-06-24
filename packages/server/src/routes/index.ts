@@ -134,6 +134,7 @@ router.use('/organizationuser', organizationUserRoute)
 router.use('/workspace', workspaceRouter)
 router.use('/workspaceuser', workspaceUserRouter)
 router.use('/account', accountRouter)
+router.use('/auth', accountRouter) // Alias for auth routes to match frontend expectations
 router.use('/loginmethod', loginMethodRouter)
 router.use('/logs', IdentityManager.checkFeatureByPlan('feat:logs'), logsRouter)
 router.use('/files', IdentityManager.checkFeatureByPlan('feat:files'), filesRouter)
