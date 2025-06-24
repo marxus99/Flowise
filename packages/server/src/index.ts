@@ -16,6 +16,7 @@ import { RateLimiterManager } from './utils/rateLimit'
 import { getAllowedIframeOrigins, sanitizeMiddleware } from './utils/XSS'
 import { Telemetry } from './utils/telemetry'
 import errorHandlerMiddleware from './middlewares/errors'
+import corsMiddleware from './middlewares/cors'
 import { WHITELIST_URLS } from './utils/constants'
 import { initializeJwtCookieMiddleware, verifyToken } from './enterprise/middleware/passport'
 import { IdentityManager } from './IdentityManager'
@@ -228,6 +229,9 @@ export class App {
 
         // Add the sanitizeMiddleware to guard against XSS
         this.app.use(sanitizeMiddleware)
+
+        // Add CORS middleware
+        this.app.use(corsMiddleware)
 
         const whitelistURLs = WHITELIST_URLS
         const URL_CASE_INSENSITIVE_REGEX: RegExp = /\/api\/v1\//i
