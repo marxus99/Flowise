@@ -35,6 +35,9 @@ import { GeneralRole, Role } from './enterprise/database/entities/role.entity'
 import { migrateApiKeysFromJsonToDb } from './utils/apiKey'
 import { ALLOWED_ORIGINS, isDev } from './config'
 import { execSync } from 'child_process'
+import apiRoutes from './routes'
+
+// Import the main routes
 
 declare global {
     namespace Express {
@@ -381,6 +384,9 @@ export class App {
                 timestamp: new Date().toISOString()
             })
         })
+
+        // Register API routes
+        this.app.use('/api/v1', apiRoutes)
 
         // ----------------------------------------
         // Configure number of proxies in Host Environment
