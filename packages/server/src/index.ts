@@ -7,7 +7,7 @@ import { DataSource, IsNull } from 'typeorm'
 import { MODE, Platform } from './Interface'
 import { getNodeModulesPackagePath, getEncryptionKey } from './utils'
 import logger, { expressRequestLogger } from './utils/logger'
-import { getDataSource } from './DataSource'
+import { getDataSource, init } from './DataSource'
 import { NodesPool } from './NodesPool'
 import { ChatFlow } from './database/entities/ChatFlow'
 import { CachePool } from './CachePool'
@@ -70,7 +70,7 @@ export class App {
     cachePool: CachePool
     telemetry: Telemetry
     rateLimiterManager: RateLimiterManager
-    AppDataSource: DataSource = getDataSource()
+    AppDataSource: DataSource
     sseStreamer: SSEStreamer
     identityManager: IdentityManager
     metricsProvider: IMetricsProvider
@@ -85,6 +85,8 @@ export class App {
     async initDatabase() {
         // Initialize database
         try {
+            // First initialize the DataSource
+            this.AppDataSource = await init()
             await this.AppDataSource.initialize()
             logger.info('📦 [server]: Data Source initialized successfully')
 
