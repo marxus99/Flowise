@@ -9,7 +9,7 @@ const corsMiddleware: RequestHandler = (req: Request, res: Response, next: NextF
     if (req.path === '/health' || req.path === '/ready' || req.path === '/') {
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,x-request-from')
     }
     // Handle requests with origin header
     else if (origin && ALLOWED_ORIGINS.includes(origin)) {
@@ -17,13 +17,13 @@ const corsMiddleware: RequestHandler = (req: Request, res: Response, next: NextF
         res.setHeader('Vary', 'Origin')
         res.setHeader('Access-Control-Allow-Credentials', 'true')
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,x-request-from')
     }
     // Handle requests without origin (server-to-server, curl, monitoring tools)
     else if (!origin && (userAgent.includes('Go-http-client') || userAgent.includes('curl') || userAgent.includes('monitoring'))) {
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-request-from')
     }
 
     // Handle preflight requests
