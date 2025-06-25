@@ -1,4 +1,4 @@
-// constant
+import.meta.env.VITE_API_BASE_URL // constant
 import {
     IconLibrary,
     IconTools,
@@ -22,8 +22,14 @@ export const drawerWidth = 260
 export const appDrawerWidth = 320
 export const headerHeight = 80
 export const maxScroll = 100000
-export const baseURL = import.meta.env.VITE_API_BASE_URL || window.location.origin
+export const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://flowise-ai-cqlx.onrender.com'
 export const uiBaseURL = import.meta.env.VITE_UI_BASE_URL || window.location.origin
+
+// Debug logging - will run when the module is imported
+if (typeof window !== 'undefined') {
+    console.log('Environment check - VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
+    console.log('Final baseURL:', baseURL)
+}
 export const FLOWISE_CREDENTIAL_ID = 'FLOWISE_CREDENTIAL_ID'
 export const REDACTED_CREDENTIAL_VALUE = '_FLOWISE_BLANK_07167752-1a71-43b1-bf8f-4f32252165db'
 export const ErrorMessage = {
