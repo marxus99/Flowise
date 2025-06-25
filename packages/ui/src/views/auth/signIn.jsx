@@ -73,8 +73,10 @@ const SignInPage = () => {
         event.preventDefault()
         setLoading(true)
         const body = {
-            email: usernameVal,
-            password: passwordVal
+            user: {
+                email: usernameVal,
+                credential: passwordVal
+            }
         }
         loginApi.request(body)
     }
