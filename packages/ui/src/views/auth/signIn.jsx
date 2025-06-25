@@ -61,10 +61,13 @@ const SignInPage = () => {
     const [loading, setLoading] = useState(false)
     const [showResendButton, setShowResendButton] = useState(false)
     const [successMessage, setSuccessMessage] = useState('')
+    const [isBasicAuthEnabled, setIsBasicAuthEnabled] = useState(false)
 
     const loginApi = useApi(authApi.login)
     const ssoLoginApi = useApi(ssoApi.ssoLogin)
     const getDefaultProvidersApi = useApi(loginMethodApi.getDefaultLoginMethods)
+    const getBasicAuthApi = useApi(accountApi.getBasicAuth)
+    const checkBasicAuthApi = useApi(accountApi.checkBasicAuth)
     const navigate = useNavigate()
     const location = useLocation()
     const resendVerificationApi = useApi(accountApi.resendVerificationEmail)
@@ -72,13 +75,24 @@ const SignInPage = () => {
     const doLogin = (event) => {
         event.preventDefault()
         setLoading(true)
-        const body = {
-            user: {
-                email: usernameVal,
-                credential: passwordVal
+
+        if (isBasicAuthEnabled) {
+            // Use basic auth
+            const body = {
+                username: usernameVal,
+                password: passwordVal
             }
+            checkBasicAuthApi.request(body)
+        } else {
+            // Use regular user auth
+            const body = {
+                user: {
+                    email: usernameVal,
+                    credential: passwordVal
+                }
+            }
+            loginApi.request(body)
         }
-        loginApi.request(body)
     }
 
     useEffect(() => {
@@ -98,6 +112,8 @@ const SignInPage = () => {
         if (!isOpenSource) {
             getDefaultProvidersApi.request()
         }
+        // Check for basic auth on all platforms
+        getBasicAuthApi.request()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -140,6 +156,34 @@ const SignInPage = () => {
             }
         }
     }, [ssoLoginApi.error])
+
+    // Handle basic auth check response
+    useEffect(() => {
+        if (getBasicAuthApi.data) {
+            setIsBasicAuthEnabled(getBasicAuthApi.data.isUsernamePasswordSet)
+        }
+    }, [getBasicAuthApi.data])
+
+    // Handle basic auth login response
+    useEffect(() => {
+        if (checkBasicAuthApi.data) {
+            setLoading(false)
+            if (checkBasicAuthApi.data.message === 'Authentication successful') {
+                // Basic auth successful, redirect to dashboard
+                navigate(location.state?.path || '/chatflows')
+            } else {
+                setAuthError('Authentication failed')
+            }
+        }
+    }, [checkBasicAuthApi.data])
+
+    // Handle basic auth login error
+    useEffect(() => {
+        if (checkBasicAuthApi.error) {
+            setLoading(false)
+            setAuthError('Basic authentication failed')
+        }
+    }, [checkBasicAuthApi.error])
 
     useEffect(() => {
         if (getDefaultProvidersApi.data && getDefaultProvidersApi.data.providers) {
