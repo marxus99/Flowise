@@ -7,12 +7,10 @@
         {
             "source": "/api/v1/:path*",
             "destination": "https://flowise-ai-cqlx.onrender.com/api/v1/:path*"
-        }
-    ],
-    "routes": [
+        },
         {
-            "src": "/(.*)",
-            "dest": "/index.html"
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ]
 }
