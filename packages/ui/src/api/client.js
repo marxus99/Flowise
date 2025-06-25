@@ -3,7 +3,7 @@ import { baseURL, ErrorMessage } from '@/store/constant'
 import AuthUtils from '@/utils/authUtils'
 
 const apiClient = axios.create({
-    baseURL: `${baseURL}/api/v1`,
+    baseURL: baseURL ? `${baseURL}/api/v1` : '/api/v1',
     headers: {
         'Content-type': 'application/json',
         'x-request-from': 'internal'
