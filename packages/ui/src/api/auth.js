@@ -1,7 +1,7 @@
 import client from './client'
 
 // auth
-const resolveLogin = (body) => client.post(`/account/resolve`, body)
+const resolveLogin = (body) => client.post(`/account/login`, body)
 const login = (body) => client.post(`/account/login`, body)
 
 // permissions
