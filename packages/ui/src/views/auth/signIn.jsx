@@ -169,13 +169,26 @@ const SignInPage = () => {
         if (checkBasicAuthApi.data) {
             setLoading(false)
             if (checkBasicAuthApi.data.message === 'Authentication successful') {
-                // Basic auth successful, redirect to dashboard
+                // Create user object for basic auth - simplified but complete
+                const userData = {
+                    id: 'basic-auth-user',
+                    email: usernameVal,
+                    name: usernameVal.split('@')[0], // Use part before @ as name
+                    status: 'ACTIVE',
+                    role: 'user',
+                    isSSO: false,
+                    isOrganizationAdmin: true, // For basic auth, grant admin access
+                    token: 'basic-auth-token',
+                    permissions: [],
+                    features: {}
+                }
+                store.dispatch(loginSuccess(userData))
                 navigate(location.state?.path || '/chatflows')
             } else {
                 setAuthError('Authentication failed')
             }
         }
-    }, [checkBasicAuthApi.data])
+    }, [checkBasicAuthApi.data, usernameVal, navigate, location.state?.path])
 
     // Handle basic auth login error
     useEffect(() => {
@@ -258,6 +271,12 @@ const SignInPage = () => {
                                 .
                             </Typography>
                         )}
+                    </Stack>
+                    {/* Debug indicator */}
+                    <Stack sx={{ gap: 1, padding: 1, backgroundColor: '#f0f0f0', borderRadius: 1 }}>
+                        <Typography variant='caption' sx={{ color: 'blue' }}>
+                            Debug: Basic Auth {isBasicAuthEnabled ? 'ENABLED' : 'DISABLED'}
+                        </Typography>
                     </Stack>
                     <form onSubmit={doLogin}>
                         <Stack sx={{ width: '100%', flexDirection: 'column', alignItems: 'left', justifyContent: 'center', gap: 2 }}>
