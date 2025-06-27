@@ -153,7 +153,38 @@ export class AccountController {
     public async checkBasicAuth(req: Request, res: Response) {
         const { username, password } = req.body
         if (username === process.env.FLOWISE_USERNAME && password === process.env.FLOWISE_PASSWORD) {
-            return res.json({ message: 'Authentication successful' })
+            // Create a basic auth user object that matches the expected LoggedInUser interface
+            const basicAuthUser = {
+                id: 'basic-auth-user',
+                email: username,
+                name: username.split('@')[0] || 'Admin',
+                roleId: 'basic-auth-role',
+                activeOrganizationId: 'basic-auth-org',
+                activeOrganizationSubscriptionId: 'basic-auth-subscription',
+                activeOrganizationCustomerId: 'basic-auth-customer',
+                activeOrganizationProductId: 'basic-auth-product',
+                isOrganizationAdmin: true,
+                activeWorkspaceId: 'basic-auth-workspace',
+                activeWorkspace: 'Basic Auth Workspace',
+                assignedWorkspaces: [],
+                isApiKeyValidated: true,
+                permissions: [],
+                features: {}
+            }
+
+            // Set the user in the request for session establishment
+            req.user = basicAuthUser as any
+
+            // Establish the session using passport login
+            req.login(basicAuthUser as any, { session: true }, (error) => {
+                if (error) {
+                    return res.status(500).json({ message: 'Failed to establish session' })
+                }
+
+                // Import and use setTokenOrCookies to set proper authentication tokens
+                const { setTokenOrCookies } = require('../middleware/passport')
+                return setTokenOrCookies(res, basicAuthUser, true, req)
+            })
         } else {
             return res.json({ message: 'Authentication failed' })
         }

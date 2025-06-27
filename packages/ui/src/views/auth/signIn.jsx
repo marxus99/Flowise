@@ -168,8 +168,13 @@ const SignInPage = () => {
     useEffect(() => {
         if (checkBasicAuthApi.data) {
             setLoading(false)
-            if (checkBasicAuthApi.data.message === 'Authentication successful') {
-                // Create user object for basic auth - simplified but complete
+            // Check if the response contains user data (new session-based response)
+            if (checkBasicAuthApi.data.id && checkBasicAuthApi.data.email) {
+                // New format: actual user object returned from session establishment
+                store.dispatch(loginSuccess(checkBasicAuthApi.data))
+                navigate(location.state?.path || '/chatflows')
+            } else if (checkBasicAuthApi.data.message === 'Authentication successful') {
+                // Old format: just success message (fallback)
                 const userData = {
                     id: 'basic-auth-user',
                     email: usernameVal,
