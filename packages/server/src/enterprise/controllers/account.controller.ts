@@ -153,8 +153,12 @@ export class AccountController {
 
     public async checkBasicAuth(req: Request, res: Response) {
         try {
+            console.log('🔍 checkBasicAuth called with body:', req.body)
             const { username, password } = req.body
+
             if (username === process.env.FLOWISE_USERNAME && password === process.env.FLOWISE_PASSWORD) {
+                console.log('✅ Credentials match, creating basic auth user')
+
                 // Create a basic auth user object that matches the expected LoggedInUser interface
                 const basicAuthUser = {
                     id: 'basic-auth-user',
@@ -174,22 +178,25 @@ export class AccountController {
                     features: {}
                 }
 
-                // Set the user in the request for session establishment
+                // Set the user in the request for context
                 req.user = basicAuthUser as any
 
-                // Establish the session using passport login
-                req.login(basicAuthUser as any, { session: true }, (error) => {
-                    if (error) {
-                        return res.status(500).json({ message: 'Failed to establish session' })
-                    }
-
+                console.log('🔐 Bypassing req.login and using JWT-only authentication')
+                try {
                     // Use setTokenOrCookies to set proper authentication tokens and send response
+                    // Pass false for session parameter to avoid session storage
                     setTokenOrCookies(res, basicAuthUser, true, req)
-                })
+                    console.log('✅ setTokenOrCookies completed successfully')
+                } catch (tokenError) {
+                    console.error('❌ setTokenOrCookies failed:', tokenError)
+                    return res.status(500).json({ message: 'Failed to set authentication tokens' })
+                }
             } else {
+                console.log('❌ Credentials do not match')
                 return res.status(401).json({ message: 'Authentication failed' })
             }
         } catch (error) {
+            console.error('💥 Exception in checkBasicAuth:', error)
             return res.status(500).json({ message: 'Internal server error' })
         }
     }
