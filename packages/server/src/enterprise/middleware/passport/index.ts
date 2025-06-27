@@ -319,19 +319,44 @@ export const setTokenOrCookies = (
         resWithCookies.redirect(dashboardUrl)
     } else {
         console.log('📤 Setting cookies and sending JSON response')
-        // Return the token as a cookie in our response.
-        res.cookie('token', token, {
+        console.log('- Frontend origin:', req?.headers?.origin)
+        console.log('- Request host:', req?.headers?.host)
+
+        // For cross-origin requests (Vercel frontend + Render backend), we need different cookie settings
+        const isProduction = process.env.NODE_ENV === 'production'
+        const isCrossOrigin = req?.headers?.origin && req?.headers?.origin !== `https://${req?.headers?.host}`
+
+        console.log('- Is production:', isProduction)
+        console.log('- Is cross-origin:', isCrossOrigin)
+        console.log('- Secure cookie:', secureCookie)
+
+        // Adjust cookie settings for cross-origin scenarios
+        const cookieOptions = {
             httpOnly: true,
             secure: secureCookie,
-            sameSite: 'lax'
-        })
-            .cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: secureCookie,
-                sameSite: 'lax'
-            })
+            sameSite: isCrossOrigin ? ('none' as const) : ('lax' as const),
+            // Add domain setting for cross-origin if needed
+            ...(isCrossOrigin && req?.headers?.host ? { domain: `.${req.headers.host.split('.').slice(-2).join('.')}` } : {})
+        }
+
+        console.log('- Cookie options:', cookieOptions)
+
+        // Return the token as a cookie in our response.
+        res.cookie('token', token, cookieOptions)
+            .cookie('refreshToken', refreshToken, cookieOptions)
             .type('json')
-            .send({ ...returnUser })
+            .send({
+                ...returnUser,
+                // For cross-origin scenarios, also include tokens in response body
+                // Frontend can use these if cookies don't work
+                ...(isCrossOrigin
+                    ? {
+                          authToken: token,
+                          refreshToken: refreshToken,
+                          tokenType: 'Bearer'
+                      }
+                    : {})
+            })
         console.log('✅ Cookies set and response sent')
     }
 }

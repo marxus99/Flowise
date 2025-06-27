@@ -9,12 +9,27 @@ const _cookieExtractor = (req: any) => {
 
     console.log('🍪 Cookie Extractor Debug:')
     console.log('- req.cookies exists:', !!req.cookies)
+    console.log('- Authorization header:', !!req.headers?.authorization)
+
+    // First try to get token from cookies
     if (req && req.cookies) {
         console.log('- Available cookies:', Object.keys(req.cookies))
         jwt = req.cookies['token']
         console.log('- Token cookie value:', jwt ? 'present' : 'missing')
         if (jwt) {
-            console.log('- Token preview:', jwt.substring(0, 20) + '...')
+            console.log('- Token preview (cookie):', jwt.substring(0, 20) + '...')
+        }
+    }
+
+    // Fallback to Authorization header for cross-origin scenarios
+    if (!jwt && req.headers?.authorization) {
+        const authHeader = req.headers.authorization
+        if (authHeader.startsWith('Bearer ')) {
+            jwt = authHeader.substring(7)
+            console.log('- Token from Authorization header:', jwt ? 'present' : 'missing')
+            if (jwt) {
+                console.log('- Token preview (header):', jwt.substring(0, 20) + '...')
+            }
         }
     }
 
