@@ -24,15 +24,42 @@ export const getAuthStrategy = (options: any): Strategy => {
     }
     const jwtVerify = async (req: Request, payload: ICommonObject, done: VerifiedCallback) => {
         try {
-            if (!req.user) {
-                return done(null, false, 'Unauthorized.')
-            }
             const meta = decryptToken(payload.meta)
             if (!meta) {
                 return done(null, false, 'Unauthorized.')
             }
             const ids = meta.split(':')
-            if (ids.length !== 2 || req.user.id !== ids[0]) {
+            if (ids.length !== 2) {
+                return done(null, false, 'Unauthorized.')
+            }
+
+            const [userId, workspaceId] = ids
+
+            // Handle basic auth users (who don't have session-based req.user)
+            if (userId === 'basic-auth-user') {
+                // Recreate the basic auth user object for JWT verification
+                const basicAuthUser = {
+                    id: 'basic-auth-user',
+                    email: process.env.FLOWISE_USERNAME,
+                    name: process.env.FLOWISE_USERNAME?.split('@')[0] || 'Admin',
+                    roleId: 'basic-auth-role',
+                    activeOrganizationId: 'basic-auth-org',
+                    activeOrganizationSubscriptionId: 'basic-auth-subscription',
+                    activeOrganizationCustomerId: 'basic-auth-customer',
+                    activeOrganizationProductId: 'basic-auth-product',
+                    isOrganizationAdmin: true,
+                    activeWorkspaceId: 'basic-auth-workspace',
+                    activeWorkspace: 'Basic Auth Workspace',
+                    assignedWorkspaces: [],
+                    isApiKeyValidated: true,
+                    permissions: [],
+                    features: {}
+                }
+                return done(null, basicAuthUser)
+            }
+
+            // Handle regular session-based users
+            if (!req.user || req.user.id !== userId) {
                 return done(null, false, 'Unauthorized.')
             }
             done(null, req.user)
