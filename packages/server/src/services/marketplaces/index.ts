@@ -12,6 +12,14 @@ import chatflowsService from '../chatflows'
 import { getWorkspaceSearchOptions } from '../../enterprise/utils/ControllerServiceUtils'
 import { WorkspaceService } from '../../enterprise/services/workspace.service'
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 type ITemplate = {
     badge: string
     description: string
@@ -175,12 +183,13 @@ const _modifyTemplates = (templates: any[]) => {
 const getAllCustomTemplates = async (workspaceId?: string): Promise<any> => {
     try {
         const appServer = getRunningExpressApp()
-        const templates: any[] = await appServer.AppDataSource.getRepository(CustomTemplate).findBy(getWorkspaceSearchOptions(workspaceId))
+        const searchOptions = workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {}
+        const templates: any[] = await appServer.AppDataSource.getRepository(CustomTemplate).findBy(searchOptions)
         const dbResponse = []
         _modifyTemplates(templates)
         dbResponse.push(...templates)
         // get shared credentials
-        if (workspaceId) {
+        if (workspaceId && isValidUUID(workspaceId)) {
             const workspaceService = new WorkspaceService()
             const sharedItems = (await workspaceService.getSharedItemsForWorkspace(workspaceId, 'custom_template')) as CustomTemplate[]
             if (sharedItems && sharedItems.length) {

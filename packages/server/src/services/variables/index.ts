@@ -8,6 +8,14 @@ import { getWorkspaceSearchOptions } from '../../enterprise/utils/ControllerServ
 import { QueryRunner } from 'typeorm'
 import { validate } from 'uuid'
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 const createVariable = async (newVariable: Variable, orgId: string) => {
     try {
         const appServer = getRunningExpressApp()
@@ -47,7 +55,8 @@ const deleteVariable = async (variableId: string): Promise<any> => {
 const getAllVariables = async (workspaceId?: string) => {
     try {
         const appServer = getRunningExpressApp()
-        const dbResponse = await appServer.AppDataSource.getRepository(Variable).findBy(getWorkspaceSearchOptions(workspaceId))
+        const searchOptions = workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {}
+        const dbResponse = await appServer.AppDataSource.getRepository(Variable).findBy(searchOptions)
         return dbResponse
     } catch (error) {
         throw new InternalFlowiseError(

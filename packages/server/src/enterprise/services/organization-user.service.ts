@@ -72,6 +72,23 @@ export class OrganizationUserService {
         userId: string | undefined,
         queryRunner: QueryRunner
     ) {
+        // Handle basic auth case
+        if (workspaceId === 'basic-auth-workspace' && userId === 'basic-auth-user') {
+            // Return mock organization user for basic auth
+            const mockOrganizationUser = {
+                id: 'basic-auth-org-user',
+                organizationId: 'basic-auth-org',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: OrganizationUserStatus.ACTIVE,
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            } as unknown as OrganizationUser
+            return { organizationUser: mockOrganizationUser }
+        }
+
         const workspace = await queryRunner.manager
             .createQueryBuilder(WorkspaceUser, 'workspaceUser')
             .innerJoinAndSelect('workspaceUser.workspace', 'workspace')

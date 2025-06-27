@@ -10,11 +10,20 @@ import { In } from 'typeorm'
 import csv from 'csv-parser'
 import { getWorkspaceSearchOptions } from '../../enterprise/utils/ControllerServiceUtils'
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 const getAllDatasets = async (workspaceId?: string) => {
     try {
         const appServer = getRunningExpressApp()
         const returnObj: Dataset[] = []
-        const datasets = await appServer.AppDataSource.getRepository(Dataset).findBy(getWorkspaceSearchOptions(workspaceId))
+        const searchOptions = workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {}
+        const datasets = await appServer.AppDataSource.getRepository(Dataset).findBy(searchOptions)
 
         // TODO: This is a hack to get the row count for each dataset. Need to find a better way to do this
         for (const dataset of datasets) {

@@ -10,6 +10,14 @@ import { getWorkspaceSearchOptions } from '../../enterprise/utils/ControllerServ
 import { WorkspaceShared } from '../../enterprise/database/entities/EnterpriseEntities'
 import { WorkspaceService } from '../../enterprise/services/workspace.service'
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 const createCredential = async (requestBody: any) => {
     try {
         const appServer = getRunningExpressApp()
@@ -52,7 +60,7 @@ const getAllCredentials = async (paramCredentialName: any, workspaceId?: string)
                     const name = paramCredentialName[i] as string
                     const searchOptions = {
                         credentialName: name,
-                        ...getWorkspaceSearchOptions(workspaceId)
+                        ...(workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {})
                     }
                     const credentials = await appServer.AppDataSource.getRepository(Credential).findBy(searchOptions)
                     dbResponse.push(...credentials)
@@ -60,13 +68,13 @@ const getAllCredentials = async (paramCredentialName: any, workspaceId?: string)
             } else {
                 const searchOptions = {
                     credentialName: paramCredentialName,
-                    ...getWorkspaceSearchOptions(workspaceId)
+                    ...(workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {})
                 }
                 const credentials = await appServer.AppDataSource.getRepository(Credential).findBy(searchOptions)
                 dbResponse = [...credentials]
             }
             // get shared credentials
-            if (workspaceId) {
+            if (workspaceId && isValidUUID(workspaceId)) {
                 const workspaceService = new WorkspaceService()
                 const sharedItems = (await workspaceService.getSharedItemsForWorkspace(workspaceId, 'credential')) as Credential[]
                 if (sharedItems.length) {
@@ -92,13 +100,14 @@ const getAllCredentials = async (paramCredentialName: any, workspaceId?: string)
                 }
             }
         } else {
-            const credentials = await appServer.AppDataSource.getRepository(Credential).findBy(getWorkspaceSearchOptions(workspaceId))
+            const searchOptions = workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {}
+            const credentials = await appServer.AppDataSource.getRepository(Credential).findBy(searchOptions)
             for (const credential of credentials) {
                 dbResponse.push(omit(credential, ['encryptedData']))
             }
 
             // get shared credentials
-            if (workspaceId) {
+            if (workspaceId && isValidUUID(workspaceId)) {
                 const workspaceService = new WorkspaceService()
                 const sharedItems = (await workspaceService.getSharedItemsForWorkspace(workspaceId, 'credential')) as Credential[]
                 if (sharedItems.length) {

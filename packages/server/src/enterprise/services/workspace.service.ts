@@ -53,11 +53,30 @@ export class WorkspaceService {
     }
 
     public validateWorkspaceId(id: string | undefined) {
+        // Allow special case for basic auth workspace
+        if (id === 'basic-auth-workspace') return
         if (isInvalidUUID(id)) throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, WorkspaceErrorMessage.INVALID_WORKSPACE_ID)
     }
 
     public async readWorkspaceById(id: string | undefined, queryRunner: QueryRunner) {
         this.validateWorkspaceId(id)
+
+        // Handle special case for basic auth workspace
+        if (id === 'basic-auth-workspace') {
+            // Return a mock workspace object for basic auth
+            const mockWorkspace = {
+                id: 'basic-auth-workspace',
+                name: 'Basic Auth Workspace',
+                description: 'Default workspace for basic authentication',
+                organizationId: 'basic-auth-org',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            } as Workspace
+            return mockWorkspace
+        }
+
         return await queryRunner.manager.findOneBy(Workspace, { id })
     }
 
@@ -251,6 +270,11 @@ export class WorkspaceService {
     }
 
     public async getSharedItemsForWorkspace(wsId: string, itemType: string) {
+        // Handle basic auth workspace - no shared items exist for basic auth
+        if (wsId === 'basic-auth-workspace') {
+            return []
+        }
+
         const sharedItems = await this.dataSource.getRepository(WorkspaceShared).find({
             where: {
                 workspaceId: wsId,

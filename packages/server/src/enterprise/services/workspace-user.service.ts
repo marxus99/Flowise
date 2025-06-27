@@ -58,6 +58,26 @@ export class WorkspaceUserService {
         if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
 
+        // Handle basic auth case - return mock workspace user
+        if (workspaceId === 'basic-auth-workspace' && userId === 'basic-auth-user') {
+            const mockWorkspaceUser = {
+                id: 'basic-auth-workspace-user',
+                workspaceId: 'basic-auth-workspace',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: WorkspaceUserStatus.ACTIVE,
+                lastLogin: new Date().toISOString(),
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            } as unknown as WorkspaceUser
+            return {
+                workspace,
+                workspaceUser: mockWorkspaceUser
+            }
+        }
+
         const workspaceUser = await queryRunner.manager
             .createQueryBuilder(WorkspaceUser, 'workspaceUser')
             .innerJoinAndSelect('workspaceUser.role', 'role')

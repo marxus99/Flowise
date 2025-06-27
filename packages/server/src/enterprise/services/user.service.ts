@@ -36,11 +36,30 @@ export class UserService {
     }
 
     public validateUserId(id: string | undefined) {
+        // Allow special case for basic auth users
+        if (id === 'basic-auth-user') return
         if (isInvalidUUID(id)) throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, UserErrorMessage.INVALID_USER_ID)
     }
 
     public async readUserById(id: string | undefined, queryRunner: QueryRunner) {
         this.validateUserId(id)
+
+        // Handle special case for basic auth users
+        if (id === 'basic-auth-user') {
+            // Return a mock user object for basic auth
+            const mockUser = {
+                id: 'basic-auth-user',
+                email: process.env.FLOWISE_USERNAME || 'admin@localhost',
+                name: process.env.FLOWISE_USERNAME?.split('@')[0] || 'Admin',
+                status: UserStatus.ACTIVE,
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            } as User
+            return mockUser
+        }
+
         return await queryRunner.manager.findOneBy(User, { id })
     }
 

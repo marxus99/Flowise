@@ -29,11 +29,29 @@ export class OrganizationService {
     }
 
     public validateOrganizationId(id: string | undefined) {
+        // Allow special case for basic auth organization
+        if (id === 'basic-auth-org') return
         if (isInvalidUUID(id)) throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, OrganizationErrorMessage.INVALID_ORGANIZATION_ID)
     }
 
     public async readOrganizationById(id: string | undefined, queryRunner: QueryRunner) {
         this.validateOrganizationId(id)
+
+        // Handle special case for basic auth organization
+        if (id === 'basic-auth-org') {
+            // Return a mock organization object for basic auth
+            const mockOrganization = {
+                id: 'basic-auth-org',
+                name: 'Basic Auth Organization',
+                description: 'Default organization for basic authentication',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            } as Organization
+            return mockOrganization
+        }
+
         return await queryRunner.manager.findOneBy(Organization, { id })
     }
 

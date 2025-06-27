@@ -19,7 +19,9 @@ const isValidUUID = (str: string): boolean => {
 
 const getAllApiKeysFromDB = async (workspaceId?: string) => {
     const appServer = getRunningExpressApp()
-    const keys = await appServer.AppDataSource.getRepository(ApiKey).findBy(getWorkspaceSearchOptions(workspaceId))
+    // Only use workspaceId in search if it's a valid UUID
+    const searchOptions = workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {}
+    const keys = await appServer.AppDataSource.getRepository(ApiKey).findBy(searchOptions)
     const keysWithChatflows = await addChatflowsCount(keys)
     return keysWithChatflows
 }
@@ -62,7 +64,8 @@ const createApiKey = async (keyName: string, workspaceId?: string) => {
         newKey.apiKey = apiKey
         newKey.apiSecret = apiSecret
         newKey.keyName = keyName
-        newKey.workspaceId = workspaceId
+        // Only set workspaceId if it's a valid UUID or null/undefined
+        newKey.workspaceId = workspaceId && isValidUUID(workspaceId) ? workspaceId : undefined
         const key = appServer.AppDataSource.getRepository(ApiKey).create(newKey)
         await appServer.AppDataSource.getRepository(ApiKey).save(key)
         return await getAllApiKeysFromDB(workspaceId)
@@ -156,7 +159,9 @@ const importKeys = async (body: any) => {
         }
 
         const appServer = getRunningExpressApp()
-        const allApiKeys = await appServer.AppDataSource.getRepository(ApiKey).findBy(getWorkspaceSearchOptions(workspaceId))
+        // Only use workspaceId in search if it's a valid UUID
+        const searchOptions = workspaceId && isValidUUID(workspaceId) ? getWorkspaceSearchOptions(workspaceId) : {}
+        const allApiKeys = await appServer.AppDataSource.getRepository(ApiKey).findBy(searchOptions)
         if (body.importMode === 'replaceAll') {
             // Build delete condition for replaceAll - only include workspaceId if it's a valid UUID
             const deleteCondition: any = { id: Not(IsNull()) }
@@ -186,7 +191,7 @@ const importKeys = async (body: any) => {
                         currentKey.id = uuidv4()
                         currentKey.apiKey = key.apiKey
                         currentKey.apiSecret = key.apiSecret
-                        currentKey.workspaceId = workspaceId
+                        currentKey.workspaceId = workspaceId && isValidUUID(workspaceId) ? workspaceId : undefined
                         await appServer.AppDataSource.getRepository(ApiKey).save(currentKey)
                         break
                     }
@@ -208,7 +213,7 @@ const importKeys = async (body: any) => {
                 newKey.apiKey = key.apiKey
                 newKey.apiSecret = key.apiSecret
                 newKey.keyName = key.keyName
-                newKey.workspaceId = workspaceId
+                newKey.workspaceId = workspaceId && isValidUUID(workspaceId) ? workspaceId : undefined
                 const newKeyEntity = appServer.AppDataSource.getRepository(ApiKey).create(newKey)
                 await appServer.AppDataSource.getRepository(ApiKey).save(newKeyEntity)
             }
