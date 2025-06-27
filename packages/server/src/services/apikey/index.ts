@@ -9,6 +9,14 @@ import { Not, IsNull } from 'typeorm'
 import { getWorkspaceSearchOptions } from '../../enterprise/utils/ControllerServiceUtils'
 import { v4 as uuidv4 } from 'uuid'
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 const getAllApiKeysFromDB = async (workspaceId?: string) => {
     const appServer = getRunningExpressApp()
     const keys = await appServer.AppDataSource.getRepository(ApiKey).findBy(getWorkspaceSearchOptions(workspaceId))
@@ -84,7 +92,14 @@ const updateApiKey = async (id: string, keyName: string, workspaceId?: string) =
 const deleteApiKey = async (id: string, workspaceId?: string) => {
     try {
         const appServer = getRunningExpressApp()
-        const dbResponse = await appServer.AppDataSource.getRepository(ApiKey).delete({ id, workspaceId })
+
+        // Build delete condition - only include workspaceId if it's a valid UUID
+        const deleteCondition: any = { id }
+        if (workspaceId && isValidUUID(workspaceId)) {
+            deleteCondition.workspaceId = workspaceId
+        }
+
+        const dbResponse = await appServer.AppDataSource.getRepository(ApiKey).delete(deleteCondition)
         if (!dbResponse) {
             throw new InternalFlowiseError(StatusCodes.NOT_FOUND, `ApiKey ${id} not found`)
         }
@@ -143,10 +158,12 @@ const importKeys = async (body: any) => {
         const appServer = getRunningExpressApp()
         const allApiKeys = await appServer.AppDataSource.getRepository(ApiKey).findBy(getWorkspaceSearchOptions(workspaceId))
         if (body.importMode === 'replaceAll') {
-            await appServer.AppDataSource.getRepository(ApiKey).delete({
-                id: Not(IsNull()),
-                workspaceId: workspaceId
-            })
+            // Build delete condition for replaceAll - only include workspaceId if it's a valid UUID
+            const deleteCondition: any = { id: Not(IsNull()) }
+            if (workspaceId && isValidUUID(workspaceId)) {
+                deleteCondition.workspaceId = workspaceId
+            }
+            await appServer.AppDataSource.getRepository(ApiKey).delete(deleteCondition)
         }
         if (body.importMode === 'errorIfExist') {
             // if importMode is errorIfExist, check for existing keys and raise error before any modification to the DB

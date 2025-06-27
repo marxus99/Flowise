@@ -13,15 +13,25 @@ interface IValidationResult {
     issues: string[]
 }
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 const checkFlowValidation = async (flowId: string, workspaceId?: string): Promise<IValidationResult[]> => {
     try {
         const appServer = getRunningExpressApp()
 
         const componentNodes = appServer.nodesPool.componentNodes
 
-        // Create query conditions with workspace filtering if provided
+        // Create query conditions with workspace filtering if provided and is a valid UUID
         const whereCondition: any = { id: flowId }
-        if (workspaceId) whereCondition.workspaceId = workspaceId
+        if (workspaceId && isValidUUID(workspaceId)) {
+            whereCondition.workspaceId = workspaceId
+        }
 
         const flow = await appServer.AppDataSource.getRepository(ChatFlow).findOne({
             where: whereCondition

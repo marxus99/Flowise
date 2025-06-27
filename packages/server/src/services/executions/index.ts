@@ -8,6 +8,14 @@ import { ExecutionState, IAgentflowExecutedData } from '../../Interface'
 import { _removeCredentialId } from '../../utils/buildAgentflow'
 import { getRunningExpressApp } from '../../utils/getRunningExpressApp'
 
+/**
+ * Checks if a string is a valid UUID format
+ */
+const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+}
+
 export interface ExecutionFilters {
     id?: string
     agentflowId?: string
@@ -26,8 +34,10 @@ const getExecutionById = async (executionId: string, workspaceId?: string): Prom
         const executionRepository = appServer.AppDataSource.getRepository(Execution)
 
         const query: any = { id: executionId }
-        // Add workspace filtering if provided
-        if (workspaceId) query.workspaceId = workspaceId
+        // Add workspace filtering if provided and is a valid UUID
+        if (workspaceId && isValidUUID(workspaceId)) {
+            query.workspaceId = workspaceId
+        }
 
         const res = await executionRepository.findOne({ where: query })
         if (!res) {
@@ -80,7 +90,9 @@ const getAllExecutions = async (filters: ExecutionFilters = {}): Promise<{ data:
         if (agentflowId) queryBuilder.andWhere('execution.agentflowId = :agentflowId', { agentflowId })
         if (sessionId) queryBuilder.andWhere('execution.sessionId = :sessionId', { sessionId })
         if (state) queryBuilder.andWhere('execution.state = :state', { state })
-        if (workspaceId) queryBuilder.andWhere('execution.workspaceId = :workspaceId', { workspaceId })
+        if (workspaceId && isValidUUID(workspaceId)) {
+            queryBuilder.andWhere('execution.workspaceId = :workspaceId', { workspaceId })
+        }
 
         // Date range conditions
         if (startDate && endDate) {
@@ -107,8 +119,10 @@ const updateExecution = async (executionId: string, data: Partial<Execution>, wo
         const appServer = getRunningExpressApp()
 
         const query: any = { id: executionId }
-        // Add workspace filtering if provided
-        if (workspaceId) query.workspaceId = workspaceId
+        // Add workspace filtering if provided and is a valid UUID
+        if (workspaceId && isValidUUID(workspaceId)) {
+            query.workspaceId = workspaceId
+        }
 
         const execution = await appServer.AppDataSource.getRepository(Execution).findOneBy(query)
         if (!execution) {
@@ -138,9 +152,11 @@ const deleteExecutions = async (executionIds: string[], workspaceId?: string): P
         const appServer = getRunningExpressApp()
         const executionRepository = appServer.AppDataSource.getRepository(Execution)
 
-        // Create the where condition with workspace filtering if provided
+        // Create the where condition with workspace filtering if provided and is a valid UUID
         const whereCondition: any = { id: In(executionIds) }
-        if (workspaceId) whereCondition.workspaceId = workspaceId
+        if (workspaceId && isValidUUID(workspaceId)) {
+            whereCondition.workspaceId = workspaceId
+        }
 
         // Delete executions where id is in the provided array and belongs to the workspace
         const result = await executionRepository.delete(whereCondition)
