@@ -175,8 +175,28 @@ export class App {
         // Render uses multiple proxy layers, so we need to trust them all
         this.app.set('trust proxy', true)
 
-        // Parse cookies
+        // Parse cookies with debugging for cross-origin issues
         this.app.use(cookieParser() as any)
+
+        // Debug cookie parsing for cross-origin requests
+        this.app.use((req, res, next) => {
+            if (req.path.includes('/api/v1')) {
+                const rawCookies = req.headers.cookie || ''
+                const parsedCookies = req.cookies || {}
+                const origin = req.get('Origin') || 'no-origin'
+
+                logger.info(`🍪 [Cookie Debug] ${req.method} ${req.path} from origin: ${origin}`)
+                logger.info(`🍪 [Raw Cookie Header]: "${rawCookies}"`)
+                logger.info(`🍪 [Parsed Cookies]:`, parsedCookies)
+                logger.info(`🍪 [Cookie Count]: ${Object.keys(parsedCookies).length}`)
+
+                if (rawCookies && Object.keys(parsedCookies).length === 0) {
+                    logger.warn(`🚨 [Cookie Parse Issue]: Raw cookies exist but parsing failed!`)
+                    logger.warn(`🚨 [Raw Cookie Details]: Length=${rawCookies.length}, Content="${rawCookies}"`)
+                }
+            }
+            next()
+        })
 
         // Add request logging middleware for debugging 502 errors
         this.app.use((req, res, next) => {
