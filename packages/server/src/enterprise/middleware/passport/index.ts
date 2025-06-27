@@ -33,6 +33,7 @@ const jwtAuthTokenSecret = process.env.JWT_AUTH_TOKEN_SECRET || 'auth_token'
 const jwtRefreshSecret = process.env.JWT_REFRESH_TOKEN_SECRET || process.env.JWT_AUTH_TOKEN_SECRET || 'refresh_token'
 
 const secureCookie = process.env.APP_URL?.startsWith('https') ? true : false
+const isProduction = process.env.NODE_ENV === 'production'
 const jwtOptions = {
     secretOrKey: jwtAuthTokenSecret,
     audience: jwtAudience,
@@ -40,7 +41,7 @@ const jwtOptions = {
 }
 
 const _initializePassportMiddleware = async (app: express.Application) => {
-    // Configure session middleware
+    // Configure session middleware with proper cross-origin settings
     let options: any = {
         secret: process.env.EXPRESS_SESSION_SECRET || 'flowise',
         resave: false,
@@ -48,7 +49,12 @@ const _initializePassportMiddleware = async (app: express.Application) => {
         cookie: {
             secure: secureCookie,
             httpOnly: true,
-            sameSite: 'lax' // Add sameSite attribute
+            // For cross-origin requests, we need sameSite: 'none' with secure: true
+            // For same-origin requests, 'lax' is safer
+            sameSite: secureCookie && isProduction ? 'none' : 'lax',
+            // Set domain for cross-subdomain access if configured
+            domain: process.env.COOKIE_DOMAIN || undefined,
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
         }
     }
 
@@ -280,23 +286,13 @@ export const setTokenOrCookies = (
     redirect?: boolean,
     isSSO?: boolean
 ) => {
-    console.log('🍪 setTokenOrCookies called with:')
-    console.log('- regenerateRefreshToken:', regenerateRefreshToken)
-    console.log('- redirect:', redirect)
-    console.log('- isSSO:', isSSO)
-    console.log('- secureCookie setting:', secureCookie)
-    console.log('- APP_URL:', process.env.APP_URL)
-
     const token = generateJwtAuthToken(user)
-    console.log('- Generated token (first 50 chars):', token.substring(0, 50) + '...')
 
     let refreshToken: string = ''
     if (regenerateRefreshToken) {
         refreshToken = generateJwtRefreshToken(user)
-        console.log('- Generated refresh token (first 50 chars):', refreshToken.substring(0, 50) + '...')
     } else {
         refreshToken = req?.cookies?.refreshToken
-        console.log('- Using existing refresh token:', !!refreshToken)
     }
     const returnUser = generateSafeCopy(user)
     returnUser.isSSO = !isSSO ? false : isSSO
@@ -304,42 +300,34 @@ export const setTokenOrCookies = (
     if (redirect) {
         // Send user data as part of the redirect URL (using query parameters)
         const dashboardUrl = `/sso-success?user=${encodeURIComponent(JSON.stringify(returnUser))}`
-        // Return the token as a cookie in our response.
-        let resWithCookies = res
-            .cookie('token', token, {
-                httpOnly: true,
-                secure: secureCookie,
-                sameSite: 'lax'
-            })
-            .cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: secureCookie,
-                sameSite: 'lax'
-            })
+        // Return the token as a cookie in our response with proper cross-origin settings
+        const isProduction = process.env.NODE_ENV === 'production'
+        const cookieOptions = {
+            httpOnly: true,
+            secure: secureCookie,
+            sameSite: secureCookie && isProduction ? ('none' as const) : ('lax' as const),
+            domain: process.env.COOKIE_DOMAIN || undefined,
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        }
+
+        let resWithCookies = res.cookie('token', token, cookieOptions).cookie('refreshToken', refreshToken, cookieOptions)
         resWithCookies.redirect(dashboardUrl)
     } else {
-        console.log('📤 Setting cookies and sending JSON response')
-        console.log('- Frontend origin:', req?.headers?.origin)
-        console.log('- Request host:', req?.headers?.host)
-
-        // For cross-origin requests (Vercel frontend + Render backend), we need different cookie settings
+        // For API responses, configure cookies properly for cross-origin scenarios
         const isProduction = process.env.NODE_ENV === 'production'
-        const isCrossOrigin = req?.headers?.origin && req?.headers?.origin !== `https://${req?.headers?.host}`
-
-        console.log('- Is production:', isProduction)
-        console.log('- Is cross-origin:', isCrossOrigin)
-        console.log('- Secure cookie:', secureCookie)
+        const origin = req?.headers?.origin
+        const isCrossOrigin = origin && !origin.includes(req?.headers?.host || '')
 
         // Adjust cookie settings for cross-origin scenarios
         const cookieOptions = {
             httpOnly: true,
             secure: secureCookie,
-            sameSite: isCrossOrigin ? ('none' as const) : ('lax' as const),
-            // Add domain setting for cross-origin if needed
-            ...(isCrossOrigin && req?.headers?.host ? { domain: `.${req.headers.host.split('.').slice(-2).join('.')}` } : {})
+            // For cross-origin requests in production, use sameSite: 'none'
+            // For same-origin or development, use 'lax'
+            sameSite: isCrossOrigin && secureCookie && isProduction ? ('none' as const) : ('lax' as const),
+            domain: process.env.COOKIE_DOMAIN || undefined,
+            maxAge: 24 * 60 * 60 * 1000 // 24 hours
         }
-
-        console.log('- Cookie options:', cookieOptions)
 
         // Return the token as a cookie in our response.
         res.cookie('token', token, cookieOptions)
@@ -357,7 +345,6 @@ export const setTokenOrCookies = (
                       }
                     : {})
             })
-        console.log('✅ Cookies set and response sent')
     }
 }
 
@@ -402,14 +389,7 @@ export const generateJwtRefreshToken = (user: any) => {
 }
 
 const _generateJwtToken = (user: Partial<LoggedInUser>, expiryInMinutes: number, secret: string) => {
-    console.log('🔐 Generating JWT token for user:')
-    console.log('- User ID:', user?.id)
-    console.log('- Active Workspace ID:', user?.activeWorkspaceId)
-    console.log('- User Name:', user?.name)
-    console.log('- Expiry minutes:', expiryInMinutes)
-
     const encryptedUserInfo = encryptToken(user?.id + ':' + user?.activeWorkspaceId)
-    console.log('- Encrypted meta:', encryptedUserInfo ? 'generated' : 'failed')
 
     const token = sign({ id: user?.id, username: user?.name, meta: encryptedUserInfo }, secret, {
         expiresIn: `${expiryInMinutes}m`, // Expiry in minutes
@@ -419,33 +399,17 @@ const _generateJwtToken = (user: Partial<LoggedInUser>, expiryInMinutes: number,
         issuer: jwtIssuer // The issuer of the token
     })
 
-    console.log('- Generated token length:', token.length)
     return token
 }
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
-    console.log('🔍 JWT Verification Debug:')
-    console.log('- URL:', req.url)
-    console.log('- Cookies present:', !!req.cookies)
-    console.log('- Token cookie:', !!req.cookies?.token)
-    if (req.cookies?.token) {
-        console.log('- Token exists (first 50 chars):', req.cookies.token.substring(0, 50) + '...')
-    }
-
     passport.authenticate('jwt', { session: true }, (err: any, user: LoggedInUser, info: object) => {
-        console.log('🔍 JWT Auth Result:')
-        console.log('- Error:', err)
-        console.log('- User:', !!user, user?.id)
-        console.log('- Info:', info)
-
         if (err) {
-            console.log('❌ JWT Error:', err)
             return next(err)
         }
 
         // @ts-ignore
         if (info && info.name === 'TokenExpiredError') {
-            console.log('🕒 Token expired')
             if (req.cookies && req.cookies.refreshToken) {
                 return res.status(401).json({ message: ErrorMessage.TOKEN_EXPIRED, retry: true })
             }
@@ -453,7 +417,6 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         }
 
         if (!user) {
-            console.log('❌ No user from JWT verification')
             return res.status(401).json({ message: ErrorMessage.INVALID_MISSING_TOKEN })
         }
 
@@ -462,7 +425,6 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
             return res.status(401).json({ redirectUrl: '/license-expired' })
         }
 
-        console.log('✅ JWT verification successful for user:', user.id)
         req.user = user
         next()
     })(req, res, next)

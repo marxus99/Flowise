@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
-import { ALLOWED_ORIGINS } from '../config'
+import { ALLOWED_ORIGINS, isDev } from '../config'
 
 const corsMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin as string | undefined
@@ -11,13 +11,21 @@ const corsMiddleware: RequestHandler = (req: Request, res: Response, next: NextF
         res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS')
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type,x-request-from')
     }
-    // Handle requests with origin header
+    // In development, allow all origins with credentials
+    else if (isDev) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*')
+        res.setHeader('Vary', 'Origin')
+        res.setHeader('Access-Control-Allow-Credentials', 'true')
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,x-request-from,Cookie')
+    }
+    // Handle requests with origin header from allowed origins
     else if (origin && ALLOWED_ORIGINS.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin)
         res.setHeader('Vary', 'Origin')
         res.setHeader('Access-Control-Allow-Credentials', 'true')
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,x-request-from')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,x-request-from,Cookie')
     }
     // Handle requests without origin (server-to-server, curl, monitoring tools)
     else if (!origin && (userAgent.includes('Go-http-client') || userAgent.includes('curl') || userAgent.includes('monitoring'))) {

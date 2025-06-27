@@ -175,66 +175,13 @@ export class App {
         // Render uses multiple proxy layers, so we need to trust them all
         this.app.set('trust proxy', true)
 
-        // Parse cookies with debugging for cross-origin issues
-        this.app.use(cookieParser() as any)
+        // Use cookie-parser with specific options for cross-origin scenarios
+        this.app.use(cookieParser(process.env.COOKIE_SECRET || 'flowise-secret') as any)
 
-        // Debug cookie parsing for cross-origin requests
-        this.app.use((req, res, next) => {
-            if (req.path.includes('/api/v1')) {
-                const rawCookies = req.headers.cookie || ''
-                const parsedCookies = req.cookies || {}
-                const origin = req.get('Origin') || 'no-origin'
-
-                logger.info(`🍪 [Cookie Debug] ${req.method} ${req.path} from origin: ${origin}`)
-                logger.info(`🍪 [Raw Cookie Header]: "${rawCookies}"`)
-                logger.info(`🍪 [Parsed Cookies]:`, parsedCookies)
-                logger.info(`🍪 [Cookie Count]: ${Object.keys(parsedCookies).length}`)
-
-                if (rawCookies && Object.keys(parsedCookies).length === 0) {
-                    logger.warn(`🚨 [Cookie Parse Issue]: Raw cookies exist but parsing failed!`)
-                    logger.warn(`🚨 [Raw Cookie Details]: Length=${rawCookies.length}, Content="${rawCookies}"`)
-                }
-            }
-            next()
-        })
-
-        // Add request logging middleware for debugging 502 errors
-        this.app.use((req, res, next) => {
-            const startTime = Date.now()
-
-            // Log request details
-            logger.info(`📨 [${new Date().toISOString()}] ${req.method} ${req.url}`, {
-                userAgent: req.get('User-Agent'),
-                clientIP: req.ip,
-                origin: req.get('Origin') || 'no-origin'
-            })
-
-            // Log response details when finished
-            res.on('finish', () => {
-                const duration = Date.now() - startTime
-                logger.info(`📤 [${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`)
-            })
-
-            next()
-        })
-
-        // If you also need to support iframe embedding or CSP, keep that below…
         // Allow embedding from specified domains.
         this.app.use((req, res, next) => {
             const allowedOrigins = getAllowedIframeOrigins()
             if (allowedOrigins === '*') {
-                next()
-            } else {
-                const csp = `frame-ancestors ${allowedOrigins}`
-                res.setHeader('Content-Security-Policy', csp)
-                next()
-            }
-        })
-
-        // (You can now remove your custom Access-Control-Allow-Credentials header middleware)        // Allow embedding from specified domains.
-        this.app.use((req, res, next) => {
-            const allowedOrigins = getAllowedIframeOrigins()
-            if (allowedOrigins == '*') {
                 next()
             } else {
                 const csp = `frame-ancestors ${allowedOrigins}`

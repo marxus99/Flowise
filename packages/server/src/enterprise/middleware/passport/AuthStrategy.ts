@@ -7,30 +7,22 @@ import { ICommonObject } from 'flowise-components'
 const _cookieExtractor = (req: any) => {
     let jwt = null
 
-    console.log('🍪 Cookie Extractor Debug:')
-    console.log('- req.cookies exists:', !!req.cookies)
-    console.log('- Authorization header:', !!req.headers?.authorization)
-
     // First try to get token from cookies
     if (req && req.cookies) {
-        console.log('- Available cookies:', Object.keys(req.cookies))
         jwt = req.cookies['token']
-        console.log('- Token cookie value:', jwt ? 'present' : 'missing')
-        if (jwt) {
-            console.log('- Token preview (cookie):', jwt.substring(0, 20) + '...')
-        }
     }
 
-    // Fallback to Authorization header for cross-origin scenarios
+    // Fallback to Authorization header for cross-origin scenarios or when cookies fail
     if (!jwt && req.headers?.authorization) {
         const authHeader = req.headers.authorization
         if (authHeader.startsWith('Bearer ')) {
             jwt = authHeader.substring(7)
-            console.log('- Token from Authorization header:', jwt ? 'present' : 'missing')
-            if (jwt) {
-                console.log('- Token preview (header):', jwt.substring(0, 20) + '...')
-            }
         }
+    }
+
+    // Additional fallback: check for token in query params (use sparingly, less secure)
+    if (!jwt && req.query?.token && typeof req.query.token === 'string') {
+        jwt = req.query.token
     }
 
     return jwt
@@ -46,31 +38,21 @@ export const getAuthStrategy = (options: any): Strategy => {
     }
     const jwtVerify = async (req: Request, payload: ICommonObject, done: VerifiedCallback) => {
         try {
-            console.log('🔍 JWT Strategy Debug:')
-            console.log('- Payload:', payload)
-            console.log('- Meta field present:', !!payload.meta)
-
             const meta = decryptToken(payload.meta)
-            console.log('- Decrypted meta:', meta)
 
             if (!meta) {
-                console.log('❌ No meta after decryption')
                 return done(null, false, 'Unauthorized.')
             }
             const ids = meta.split(':')
-            console.log('- Parsed IDs:', ids)
 
             if (ids.length !== 2) {
-                console.log('❌ Invalid meta format - not exactly 2 parts')
                 return done(null, false, 'Unauthorized.')
             }
 
-            const [userId, workspaceId] = ids
-            console.log('- User ID:', userId, 'Workspace ID:', workspaceId)
+            const [userId, _workspaceId] = ids
 
             // Handle basic auth users (who don't have session-based req.user)
             if (userId === 'basic-auth-user') {
-                console.log('✅ Handling basic auth user')
                 // Recreate the basic auth user object for JWT verification
                 const basicAuthUser = {
                     id: 'basic-auth-user',
@@ -89,24 +71,15 @@ export const getAuthStrategy = (options: any): Strategy => {
                     permissions: [],
                     features: {}
                 }
-                console.log('✅ Returning basic auth user:', basicAuthUser.email)
                 return done(null, basicAuthUser)
             }
 
             // Handle regular session-based users
-            console.log('🔍 Checking session-based user - req.user present:', !!req.user)
-            if (req.user) {
-                console.log('- req.user.id:', req.user.id)
-            }
-
             if (!req.user || req.user.id !== userId) {
-                console.log('❌ Session user mismatch or missing')
                 return done(null, false, 'Unauthorized.')
             }
-            console.log('✅ Session-based user validated')
             done(null, req.user)
         } catch (error) {
-            console.error('💥 JWT Strategy Error:', error)
             done(error, false)
         }
     }

@@ -153,12 +153,9 @@ export class AccountController {
 
     public async checkBasicAuth(req: Request, res: Response) {
         try {
-            console.log('🔍 checkBasicAuth called with body:', req.body)
             const { username, password } = req.body
 
             if (username === process.env.FLOWISE_USERNAME && password === process.env.FLOWISE_PASSWORD) {
-                console.log('✅ Credentials match, creating basic auth user')
-
                 // Create a basic auth user object that matches the expected LoggedInUser interface
                 const basicAuthUser = {
                     id: 'basic-auth-user',
@@ -181,7 +178,6 @@ export class AccountController {
                 // Set the user in the request for context
                 req.user = basicAuthUser as any
 
-                console.log('🔐 Bypassing req.login and using JWT-only authentication')
                 try {
                     // Use setTokenOrCookies to set proper authentication tokens and send response
                     // Pass false for session parameter to avoid session storage
@@ -191,7 +187,6 @@ export class AccountController {
                     return res.status(500).json({ message: 'Failed to set authentication tokens' })
                 }
             } else {
-                console.log('❌ Credentials do not match')
                 return res.status(401).json({ message: 'Authentication failed' })
             }
         } catch (error) {
