@@ -7,8 +7,15 @@ import { ICommonObject } from 'flowise-components'
 const _cookieExtractor = (req: any) => {
     let jwt = null
 
+    console.log('🍪 Cookie Extractor Debug:')
+    console.log('- req.cookies exists:', !!req.cookies)
     if (req && req.cookies) {
+        console.log('- Available cookies:', Object.keys(req.cookies))
         jwt = req.cookies['token']
+        console.log('- Token cookie value:', jwt ? 'present' : 'missing')
+        if (jwt) {
+            console.log('- Token preview:', jwt.substring(0, 20) + '...')
+        }
     }
 
     return jwt

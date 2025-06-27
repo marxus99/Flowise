@@ -185,8 +185,7 @@ export class AccountController {
                 try {
                     // Use setTokenOrCookies to set proper authentication tokens and send response
                     // Pass false for session parameter to avoid session storage
-                    setTokenOrCookies(res, basicAuthUser, true, req)
-                    console.log('✅ setTokenOrCookies completed successfully')
+                    return setTokenOrCookies(res, basicAuthUser, true, req)
                 } catch (tokenError) {
                     console.error('❌ setTokenOrCookies failed:', tokenError)
                     return res.status(500).json({ message: 'Failed to set authentication tokens' })

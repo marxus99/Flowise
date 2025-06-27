@@ -280,12 +280,23 @@ export const setTokenOrCookies = (
     redirect?: boolean,
     isSSO?: boolean
 ) => {
+    console.log('🍪 setTokenOrCookies called with:')
+    console.log('- regenerateRefreshToken:', regenerateRefreshToken)
+    console.log('- redirect:', redirect)
+    console.log('- isSSO:', isSSO)
+    console.log('- secureCookie setting:', secureCookie)
+    console.log('- APP_URL:', process.env.APP_URL)
+
     const token = generateJwtAuthToken(user)
+    console.log('- Generated token (first 50 chars):', token.substring(0, 50) + '...')
+
     let refreshToken: string = ''
     if (regenerateRefreshToken) {
         refreshToken = generateJwtRefreshToken(user)
+        console.log('- Generated refresh token (first 50 chars):', refreshToken.substring(0, 50) + '...')
     } else {
         refreshToken = req?.cookies?.refreshToken
+        console.log('- Using existing refresh token:', !!refreshToken)
     }
     const returnUser = generateSafeCopy(user)
     returnUser.isSSO = !isSSO ? false : isSSO
@@ -307,6 +318,7 @@ export const setTokenOrCookies = (
             })
         resWithCookies.redirect(dashboardUrl)
     } else {
+        console.log('📤 Setting cookies and sending JSON response')
         // Return the token as a cookie in our response.
         res.cookie('token', token, {
             httpOnly: true,
@@ -320,6 +332,7 @@ export const setTokenOrCookies = (
             })
             .type('json')
             .send({ ...returnUser })
+        console.log('✅ Cookies set and response sent')
     }
 }
 
@@ -364,14 +377,25 @@ export const generateJwtRefreshToken = (user: any) => {
 }
 
 const _generateJwtToken = (user: Partial<LoggedInUser>, expiryInMinutes: number, secret: string) => {
+    console.log('🔐 Generating JWT token for user:')
+    console.log('- User ID:', user?.id)
+    console.log('- Active Workspace ID:', user?.activeWorkspaceId)
+    console.log('- User Name:', user?.name)
+    console.log('- Expiry minutes:', expiryInMinutes)
+
     const encryptedUserInfo = encryptToken(user?.id + ':' + user?.activeWorkspaceId)
-    return sign({ id: user?.id, username: user?.name, meta: encryptedUserInfo }, secret, {
+    console.log('- Encrypted meta:', encryptedUserInfo ? 'generated' : 'failed')
+
+    const token = sign({ id: user?.id, username: user?.name, meta: encryptedUserInfo }, secret, {
         expiresIn: `${expiryInMinutes}m`, // Expiry in minutes
         notBefore: '0', // Cannot use before now, can be configured to be deferred.
         algorithm: 'HS256', // HMAC using SHA-256 hash algorithm
         audience: jwtAudience, // The audience of the token
         issuer: jwtIssuer // The issuer of the token
     })
+
+    console.log('- Generated token length:', token.length)
+    return token
 }
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
