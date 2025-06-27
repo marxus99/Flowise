@@ -73,8 +73,23 @@ export class WorkspaceController {
             if (!workspace) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, WorkspaceErrorMessage.WORKSPACE_NOT_FOUND)
 
             const userService = new UserService()
-            const user = await userService.readUserById(req.user.id, queryRunner)
-            if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
+            // Handle basic auth user case to avoid validation errors
+            let user
+            if (req.user.id === 'basic-auth-user') {
+                user = {
+                    id: 'basic-auth-user',
+                    email: 'admin@basic-auth.local',
+                    name: 'Basic Auth Admin',
+                    status: 'active',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            } else {
+                user = await userService.readUserById(req.user.id, queryRunner)
+                if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
+            }
 
             const workspaceUserService = new WorkspaceUserService()
             const { workspaceUser } = await workspaceUserService.readWorkspaceUserByWorkspaceIdUserId(query.id, req.user.id, queryRunner)

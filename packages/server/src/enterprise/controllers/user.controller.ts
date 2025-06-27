@@ -27,6 +27,21 @@ export class UserController {
 
             let user: User | null
             if (query.id) {
+                // Handle basic auth user case directly in controller to avoid validation errors
+                if (query.id === 'basic-auth-user') {
+                    const basicAuthUser = {
+                        id: 'basic-auth-user',
+                        email: 'admin@basic-auth.local',
+                        name: 'Basic Auth Admin',
+                        status: 'active',
+                        createdDate: new Date(),
+                        updatedDate: new Date(),
+                        createdBy: 'basic-auth-user',
+                        updatedBy: 'basic-auth-user'
+                    } as User
+                    return res.status(StatusCodes.OK).json(basicAuthUser)
+                }
+
                 user = await userService.readUserById(query.id, queryRunner)
                 if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
             } else if (query.email) {
