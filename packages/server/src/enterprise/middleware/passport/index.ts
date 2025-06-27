@@ -375,13 +375,28 @@ const _generateJwtToken = (user: Partial<LoggedInUser>, expiryInMinutes: number,
 }
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+    console.log('🔍 JWT Verification Debug:')
+    console.log('- URL:', req.url)
+    console.log('- Cookies present:', !!req.cookies)
+    console.log('- Token cookie:', !!req.cookies?.token)
+    if (req.cookies?.token) {
+        console.log('- Token exists (first 50 chars):', req.cookies.token.substring(0, 50) + '...')
+    }
+
     passport.authenticate('jwt', { session: true }, (err: any, user: LoggedInUser, info: object) => {
+        console.log('🔍 JWT Auth Result:')
+        console.log('- Error:', err)
+        console.log('- User:', !!user, user?.id)
+        console.log('- Info:', info)
+
         if (err) {
+            console.log('❌ JWT Error:', err)
             return next(err)
         }
 
         // @ts-ignore
         if (info && info.name === 'TokenExpiredError') {
+            console.log('🕒 Token expired')
             if (req.cookies && req.cookies.refreshToken) {
                 return res.status(401).json({ message: ErrorMessage.TOKEN_EXPIRED, retry: true })
             }
@@ -389,6 +404,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         }
 
         if (!user) {
+            console.log('❌ No user from JWT verification')
             return res.status(401).json({ message: ErrorMessage.INVALID_MISSING_TOKEN })
         }
 
@@ -397,6 +413,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
             return res.status(401).json({ redirectUrl: '/license-expired' })
         }
 
+        console.log('✅ JWT verification successful for user:', user.id)
         req.user = user
         next()
     })(req, res, next)
