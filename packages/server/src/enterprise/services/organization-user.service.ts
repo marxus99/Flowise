@@ -45,8 +45,25 @@ export class OrganizationUserService {
     ) {
         const organization = await this.organizationService.readOrganizationById(organizationId, queryRunner)
         if (!organization) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, OrganizationErrorMessage.ORGANIZATION_NOT_FOUND)
-        const user = await this.userService.readUserById(userId, queryRunner)
-        if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
+
+        // Handle basic auth user case
+        let user
+        if (userId === 'basic-auth-user') {
+            user = {
+                id: 'basic-auth-user',
+                email: 'admin@basic-auth.local',
+                name: 'Basic Auth Admin',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            }
+        } else {
+            user = await this.userService.readUserById(userId, queryRunner)
+            if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
+        }
+
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
 
         const organizationUser = await queryRunner.manager
@@ -173,8 +190,24 @@ export class OrganizationUserService {
     }
 
     public async readOrganizationUserByUserId(userId: string | undefined, queryRunner: QueryRunner) {
-        const user = await this.userService.readUserById(userId, queryRunner)
-        if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
+        // Handle basic auth user case
+        let user
+        if (userId === 'basic-auth-user') {
+            user = {
+                id: 'basic-auth-user',
+                email: 'admin@basic-auth.local',
+                name: 'Basic Auth Admin',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            }
+        } else {
+            user = await this.userService.readUserById(userId, queryRunner)
+            if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
+        }
+
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
 
         const orgUsers = await queryRunner.manager
@@ -192,8 +225,22 @@ export class OrganizationUserService {
         for (const user of organizationUsers) {
             const organizationOwner = await this.readOrganizationUserByOrganizationIdRoleId(user.organizationId, ownerRole?.id, queryRunner)
             if (organizationOwner.length === 1) {
-                // get the user's name and email
-                const userDetails = await this.userService.readUserById(organizationOwner[0].userId, queryRunner)
+                // get the user's name and email - handle basic auth case
+                let userDetails
+                if (organizationOwner[0].userId === 'basic-auth-user') {
+                    userDetails = {
+                        id: 'basic-auth-user',
+                        email: 'admin@basic-auth.local',
+                        name: 'Basic Auth Admin',
+                        status: 'active',
+                        createdDate: new Date(),
+                        updatedDate: new Date(),
+                        createdBy: 'basic-auth-user',
+                        updatedBy: 'basic-auth-user'
+                    }
+                } else {
+                    userDetails = await this.userService.readUserById(organizationOwner[0].userId, queryRunner)
+                }
                 if (userDetails) {
                     user.user = userDetails
                 }
