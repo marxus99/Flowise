@@ -60,8 +60,18 @@ export class WorkspaceUserService {
 
         // Handle basic auth case - return mock workspace user
         if (workspaceId === 'basic-auth-workspace' && userId === 'basic-auth-user') {
+            const mockUser = {
+                id: 'basic-auth-user',
+                email: 'admin@basic-auth.local',
+                name: 'Basic Auth Admin',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            }
+
             const mockWorkspaceUser = {
-                id: 'basic-auth-workspace-user',
                 workspaceId: 'basic-auth-workspace',
                 userId: 'basic-auth-user',
                 roleId: 'basic-auth-role',
@@ -70,7 +80,17 @@ export class WorkspaceUserService {
                 createdDate: new Date(),
                 updatedDate: new Date(),
                 createdBy: 'basic-auth-user',
-                updatedBy: 'basic-auth-user'
+                updatedBy: 'basic-auth-user',
+                user: mockUser,
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Admin',
+                    description: 'Basic Auth Admin Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
             } as unknown as WorkspaceUser
             return {
                 workspace,
@@ -123,8 +143,18 @@ export class WorkspaceUserService {
         // Handle basic auth user case
         if (userId === 'basic-auth-user') {
             // Return mock workspace user data for basic auth
+            const mockUser = {
+                id: 'basic-auth-user',
+                email: 'admin@basic-auth.local',
+                name: 'Basic Auth Admin',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            }
+
             const mockWorkspaceUser = {
-                id: 'basic-auth-workspace-user',
                 workspaceId: 'basic-auth-workspace',
                 userId: 'basic-auth-user',
                 roleId: 'basic-auth-role',
@@ -135,6 +165,7 @@ export class WorkspaceUserService {
                 createdBy: 'basic-auth-user',
                 updatedBy: 'basic-auth-user',
                 isOrgOwner: true,
+                user: mockUser,
                 workspace: {
                     id: 'basic-auth-workspace',
                     name: 'Basic Auth Workspace',
@@ -153,7 +184,7 @@ export class WorkspaceUserService {
                     createdBy: 'basic-auth-user',
                     updatedBy: 'basic-auth-user'
                 }
-            }
+            } as any
             return [mockWorkspaceUser]
         }
 
@@ -182,8 +213,18 @@ export class WorkspaceUserService {
         // Handle basic auth case
         if (organizationId === 'basic-auth-org' && userId === 'basic-auth-user') {
             // Return mock workspace user data for basic auth
+            const mockUser = {
+                id: 'basic-auth-user',
+                email: 'admin@basic-auth.local',
+                name: 'Basic Auth Admin',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            }
+
             const mockWorkspaceUser = {
-                id: 'basic-auth-workspace-user',
                 workspaceId: 'basic-auth-workspace',
                 userId: 'basic-auth-user',
                 roleId: 'basic-auth-role',
@@ -194,6 +235,7 @@ export class WorkspaceUserService {
                 createdBy: 'basic-auth-user',
                 updatedBy: 'basic-auth-user',
                 isOrgOwner: true,
+                user: mockUser,
                 workspace: {
                     id: 'basic-auth-workspace',
                     name: 'Basic Auth Workspace',
@@ -212,7 +254,7 @@ export class WorkspaceUserService {
                     createdBy: 'basic-auth-user',
                     updatedBy: 'basic-auth-user'
                 }
-            }
+            } as any
             return [mockWorkspaceUser]
         }
 
