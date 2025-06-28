@@ -120,6 +120,43 @@ export class WorkspaceUserService {
     }
 
     public async readWorkspaceUserByUserId(userId: string | undefined, queryRunner: QueryRunner) {
+        // Handle basic auth user case
+        if (userId === 'basic-auth-user') {
+            // Return mock workspace user data for basic auth
+            const mockWorkspaceUser = {
+                id: 'basic-auth-workspace-user',
+                workspaceId: 'basic-auth-workspace',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: WorkspaceUserStatus.ACTIVE,
+                lastLogin: new Date().toISOString(),
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user',
+                isOrgOwner: true,
+                workspace: {
+                    id: 'basic-auth-workspace',
+                    name: 'Basic Auth Workspace',
+                    organizationId: 'basic-auth-org',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                },
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Admin',
+                    description: 'Basic Auth Admin Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            }
+            return [mockWorkspaceUser]
+        }
+
         const user = await this.userService.readUserById(userId, queryRunner)
         if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
@@ -142,6 +179,43 @@ export class WorkspaceUserService {
         userId: string | undefined,
         queryRunner: QueryRunner
     ) {
+        // Handle basic auth case
+        if (organizationId === 'basic-auth-org' && userId === 'basic-auth-user') {
+            // Return mock workspace user data for basic auth
+            const mockWorkspaceUser = {
+                id: 'basic-auth-workspace-user',
+                workspaceId: 'basic-auth-workspace',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: WorkspaceUserStatus.ACTIVE,
+                lastLogin: new Date().toISOString(),
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user',
+                isOrgOwner: true,
+                workspace: {
+                    id: 'basic-auth-workspace',
+                    name: 'Basic Auth Workspace',
+                    organizationId: 'basic-auth-org',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                },
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Admin',
+                    description: 'Basic Auth Admin Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            }
+            return [mockWorkspaceUser]
+        }
+
         const user = await this.userService.readUserById(userId, queryRunner)
         if (!user) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, UserErrorMessage.USER_NOT_FOUND)
         const organization = await this.organizationService.readOrganizationById(organizationId, queryRunner)
