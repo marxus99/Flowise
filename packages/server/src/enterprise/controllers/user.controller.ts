@@ -121,7 +121,7 @@ export class UserController {
     }
 
     // NUCLEAR OPTION: Special endpoint that bypasses ALL authentication for basic auth
-    public async basicAuthUpdate(req: Request, res: Response, next: NextFunction) {
+    public async basicAuthUpdate(req: Request, res: Response) {
         try {
             // NUCLEAR OPTION: No auth, no validation, just return success
 
