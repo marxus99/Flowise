@@ -41,6 +41,25 @@ The authentication system was already properly designed to handle basic auth use
 5. Verify no "Status 400: Invalid User Id" error occurs
 6. Verify profile update succeeds
 
+## Status Update - June 30, 2025
+
+**Issue**: After deployment, the Status 400 error persisted despite all code fixes being in place.
+
+**Investigation**:
+
+-   All backend code correctly handles basic auth users
+-   JWT strategy properly validates `basic-auth-user` tokens
+-   User service allows `basic-auth-user` ID validation
+-   User controller handles basic auth profile updates
+
+**Current Action**: Added deployment debug logging to confirm if latest code is running in production environment. The issue may be:
+
+1. Deployment cache/timing issue
+2. Environment-specific configuration
+3. Multiple deployment instances
+
+**Next Steps**: Monitor production logs for debug output to confirm fix deployment, then retest profile update functionality.
+
 ## Agent Development Safety
 
 ✅ **SAFE TO PROCEED** - The profile update error was the only blocking issue. All other Flowise functionality remains intact:
