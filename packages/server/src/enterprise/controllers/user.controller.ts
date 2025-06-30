@@ -31,8 +31,8 @@ export class UserController {
                 if (query.id === 'basic-auth-user') {
                     const basicAuthUser = {
                         id: 'basic-auth-user',
-                        email: 'admin@basic-auth.local',
-                        name: 'Basic Auth Admin',
+                        email: process.env.FLOWISE_USERNAME || 'admin@basic-auth.local',
+                        name: process.env.FLOWISE_USERNAME?.split('@')[0] || 'Admin',
                         status: 'active',
                         createdDate: new Date(),
                         updatedDate: new Date(),
