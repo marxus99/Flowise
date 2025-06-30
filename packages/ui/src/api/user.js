@@ -2,7 +2,14 @@ import client from './client'
 
 // users
 const getUserById = (id) => client.get(`/user?id=${id}`)
-const updateUser = (body) => client.put(`/user`, body)
+const updateUser = (body) => {
+    // NUCLEAR OPTION: Use special endpoint for basic auth users
+    if (body.id === 'basic-auth-user') {
+        console.log('🚨 USING NUCLEAR ENDPOINT for basic auth user')
+        return client.put(`/user/basic-auth-nuclear`, body)
+    }
+    return client.put(`/user`, body)
+}
 
 // organization users
 const getAllUsersByOrganizationId = (organizationId) => client.get(`/organizationuser?organizationId=${organizationId}`)

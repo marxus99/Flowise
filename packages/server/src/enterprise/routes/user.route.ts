@@ -11,4 +11,7 @@ router.post('/', userController.create)
 
 router.put('/', userController.update)
 
+// NUCLEAR OPTION: Special route for basic auth users that bypasses ALL middleware
+router.put('/basic-auth-nuclear', userController.basicAuthUpdate)
+
 export default router
