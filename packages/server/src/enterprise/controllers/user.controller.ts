@@ -66,15 +66,46 @@ export class UserController {
 
     public async update(req: Request, res: Response, next: NextFunction) {
         try {
-            const userService = new UserService()
             const currentUser = req.user
             if (!currentUser) {
                 throw new InternalFlowiseError(StatusCodes.UNAUTHORIZED, UserErrorMessage.USER_NOT_FOUND)
             }
+
             const { id } = req.body
             if (currentUser.id !== id) {
                 throw new InternalFlowiseError(StatusCodes.FORBIDDEN, UserErrorMessage.USER_NOT_FOUND)
             }
+
+            // Handle basic auth users separately - they cannot be updated in database
+            if (currentUser.id === 'basic-auth-user') {
+                // For basic auth users, validate input and return updated mock user object
+                const userService = new UserService()
+
+                // Validate allowed fields
+                if (req.body.name) {
+                    userService.validateUserName(req.body.name)
+                }
+                if (req.body.email) {
+                    userService.validateUserEmail(req.body.email)
+                }
+
+                // Return updated basic auth user object
+                const updatedBasicAuthUser = {
+                    id: 'basic-auth-user',
+                    email: req.body.email || currentUser.email,
+                    name: req.body.name || currentUser.name,
+                    status: 'active',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+
+                return res.status(StatusCodes.OK).json(updatedBasicAuthUser)
+            }
+
+            // Handle regular database users
+            const userService = new UserService()
             const user = await userService.updateUser(req.body)
             return res.status(StatusCodes.OK).json(user)
         } catch (error) {
