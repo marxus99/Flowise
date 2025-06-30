@@ -65,6 +65,9 @@ export class UserController {
     }
     public async update(req: Request, res: Response, next: NextFunction) {
         try {
+            // Force redeploy confirmation log - v2
+            console.log('🚀🚀 USER UPDATE LIVE CODE:', new Date().toISOString())
+
             const currentUser = req.user
             if (!currentUser) {
                 throw new InternalFlowiseError(StatusCodes.UNAUTHORIZED, UserErrorMessage.USER_NOT_FOUND)
