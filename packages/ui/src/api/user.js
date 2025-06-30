@@ -3,10 +3,12 @@ import client from './client'
 // users
 const getUserById = (id) => client.get(`/user?id=${id}`)
 const updateUser = (body) => {
-    // NUCLEAR OPTION: Use special endpoint for basic auth users
+    // NUCLEAR OPTION: Always ensure basic auth users have the ID in the body
     if (body.id === 'basic-auth-user') {
-        return client.put(`/user/basic-auth-nuclear`, body)
+        // Force the ID to be in the body for middleware detection
+        body.id = 'basic-auth-user'
     }
+    // Use regular endpoint - middleware will handle basic auth users
     return client.put(`/user`, body)
 }
 
