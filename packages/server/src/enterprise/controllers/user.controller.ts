@@ -63,43 +63,28 @@ export class UserController {
             if (queryRunner) await queryRunner.release()
         }
     }
-
     public async update(req: Request, res: Response, next: NextFunction) {
         try {
-            // Add comprehensive logging for debugging
-            console.log('🔍 USER CONTROLLER UPDATE - Request received')
-            console.log('📝 Request body:', JSON.stringify(req.body, null, 2))
-            console.log('👤 Current user:', req.user ? { id: req.user.id, email: req.user.email } : 'null')
-            console.log('🌐 Request URL:', req.url)
-            console.log('📍 Request method:', req.method)
-
             const currentUser = req.user
             if (!currentUser) {
-                console.log('❌ No current user found')
                 throw new InternalFlowiseError(StatusCodes.UNAUTHORIZED, UserErrorMessage.USER_NOT_FOUND)
             }
 
             const { id } = req.body
-            console.log('🆔 Comparing IDs - Current user:', currentUser.id, 'Request body ID:', id)
-
             if (currentUser.id !== id) {
-                console.log('❌ ID mismatch - Forbidden')
                 throw new InternalFlowiseError(StatusCodes.FORBIDDEN, UserErrorMessage.USER_NOT_FOUND)
             }
 
             // Handle basic auth users separately - they cannot be updated in database
             if (currentUser.id === 'basic-auth-user') {
-                console.log('✅ Basic auth user detected - handling in-memory update')
                 // For basic auth users, validate input and return updated mock user object
                 const userService = new UserService()
 
                 // Validate allowed fields
                 if (req.body.name) {
-                    console.log('📝 Validating name:', req.body.name)
                     userService.validateUserName(req.body.name)
                 }
                 if (req.body.email) {
-                    console.log('📧 Validating email:', req.body.email)
                     userService.validateUserEmail(req.body.email)
                 }
 
@@ -115,25 +100,14 @@ export class UserController {
                     updatedBy: 'basic-auth-user'
                 }
 
-                console.log('🎉 Basic auth user update successful:', updatedBasicAuthUser)
                 return res.status(StatusCodes.OK).json(updatedBasicAuthUser)
             }
 
             // Handle regular database users
-            console.log('🗄️ Processing database user update')
             const userService = new UserService()
             const user = await userService.updateUser(req.body)
-            console.log('✅ Database user update successful')
             return res.status(StatusCodes.OK).json(user)
         } catch (error) {
-            console.log('❌ USER CONTROLLER UPDATE ERROR:', error)
-            if (error instanceof Error) {
-                console.log('Error details:', {
-                    message: error.message,
-                    status: (error as any).status,
-                    stack: error.stack
-                })
-            }
             next(error)
         }
     }
