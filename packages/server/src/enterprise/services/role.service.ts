@@ -29,6 +29,8 @@ export class RoleService {
     }
 
     public validateRoleId(id: string | undefined) {
+        // Allow special case for basic auth role
+        if (id === 'basic-auth-role') return
         if (isInvalidUUID(id)) throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, RoleErrorMessage.INVALID_ROLE_ID)
     }
 
