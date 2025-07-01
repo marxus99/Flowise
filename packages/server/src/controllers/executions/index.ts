@@ -40,7 +40,10 @@ const getAllExecutions = async (req: Request, res: Response, next: NextFunction)
         const filters: any = {}
 
         // Add workspace ID filter
-        filters.workspaceId = req.user?.activeWorkspaceId
+        const workspaceId = req.user?.activeWorkspaceId
+        if (workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org') {
+            filters.workspaceId = workspaceId
+        }
 
         // ID filter
         if (req.query.id) filters.id = req.query.id as string

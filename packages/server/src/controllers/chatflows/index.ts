@@ -192,7 +192,15 @@ const importChatflows = async (req: Request, res: Response, next: NextFunction) 
             )
         }
         const subscriptionId = req.user?.activeOrganizationSubscriptionId || ''
-        req.body.workspaceId = req.user?.activeWorkspaceId
+
+        // Handle special-case workspace IDs that shouldn't be stored as UUIDs
+        if (workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org') {
+            req.body.workspaceId = workspaceId
+        } else {
+            // For special cases like basic auth, don't set workspaceId
+            req.body.workspaceId = undefined
+        }
+
         const apiResponse = await chatflowsService.importChatflows(chatflows, orgId, workspaceId, subscriptionId)
         return res.json(apiResponse)
     } catch (error) {

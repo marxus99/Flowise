@@ -46,7 +46,15 @@ const saveCustomTemplate = async (req: Request, res: Response, next: NextFunctio
             )
         }
         const body = req.body
-        body.workspaceId = req.user?.activeWorkspaceId
+
+        // Handle special-case workspace IDs that shouldn't be stored as UUIDs
+        const workspaceId = req.user?.activeWorkspaceId
+        if (workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org') {
+            body.workspaceId = workspaceId
+        } else {
+            // For special cases like basic auth, don't set workspaceId
+            body.workspaceId = undefined
+        }
         const apiResponse = await marketplacesService.saveCustomTemplate(body)
         return res.json(apiResponse)
     } catch (error) {

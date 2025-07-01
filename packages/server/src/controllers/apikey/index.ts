@@ -48,7 +48,16 @@ const importKeys = async (req: Request, res: Response, next: NextFunction) => {
         if (typeof req.body === 'undefined' || !req.body.jsonFile) {
             throw new InternalFlowiseError(StatusCodes.PRECONDITION_FAILED, `Error: apikeyController.importKeys - body not provided!`)
         }
-        req.body.workspaceId = req.user?.activeWorkspaceId
+
+        // Handle special-case workspace IDs that shouldn't be stored as UUIDs
+        const workspaceId = req.user?.activeWorkspaceId
+        if (workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org') {
+            req.body.workspaceId = workspaceId
+        } else {
+            // For special cases like basic auth, don't set workspaceId
+            req.body.workspaceId = undefined
+        }
+
         const apiResponse = await apikeyService.importKeys(req.body)
         return res.json(apiResponse)
     } catch (error) {
