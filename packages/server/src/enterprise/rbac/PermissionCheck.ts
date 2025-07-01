@@ -7,7 +7,8 @@ export const checkPermission = (permission: string) => {
         const user = req.user
         // if the user is not logged in, return forbidden
         if (user) {
-            if (user.isApiKeyValidated || user.isOrganizationAdmin) {
+            // Allow basic auth users full access (temporary compatibility)
+            if (user.id === 'basic-auth-user' || user.isApiKeyValidated || user.isOrganizationAdmin) {
                 return next()
             }
             const permissions = user.permissions

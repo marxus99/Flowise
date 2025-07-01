@@ -93,7 +93,7 @@ const checkIfChatflowIsValidForUploads = async (chatflowId: string): Promise<any
     }
 }
 
-const deleteChatflow = async (chatflowId: string, orgId: string, workspaceId: string): Promise<any> => {
+const deleteChatflow = async (chatflowId: string, orgId: string, workspaceId?: string): Promise<any> => {
     try {
         const appServer = getRunningExpressApp()
 
@@ -114,7 +114,7 @@ const deleteChatflow = async (chatflowId: string, orgId: string, workspaceId: st
         try {
             // Delete all uploads corresponding to this chatflow
             const { totalSize } = await removeFolderFromStorage(orgId, chatflowId)
-            await updateStorageUsage(orgId, workspaceId, totalSize, appServer.usageCacheManager)
+            await updateStorageUsage(orgId, workspaceId || '', totalSize, appServer.usageCacheManager)
         } catch (e) {
             logger.error(`[server]: Error deleting file storage for chatflow ${chatflowId}`)
         }

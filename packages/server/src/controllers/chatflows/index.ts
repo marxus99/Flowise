@@ -58,7 +58,12 @@ const deleteChatflow = async (req: Request, res: Response, next: NextFunction) =
                 `Error: chatflowsController.deleteChatflow - workspace ${workspaceId} not found!`
             )
         }
-        const apiResponse = await chatflowsService.deleteChatflow(req.params.id, orgId, workspaceId)
+
+        // Handle special-case workspace IDs for delete operations
+        const safeWorkspaceId =
+            workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org' ? workspaceId : undefined
+
+        const apiResponse = await chatflowsService.deleteChatflow(req.params.id, orgId, safeWorkspaceId)
         return res.json(apiResponse)
     } catch (error) {
         next(error)

@@ -411,7 +411,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         (req.path.includes('/user') && (req.body?.id === 'basic-auth-user' || req.query?.id === 'basic-auth-user'))
 
     if (isBasicAuthRequest) {
-        // Create a mock basic auth user and attach to request
+        // Create a complete basic auth user with all necessary permissions and flags
         req.user = {
             id: 'basic-auth-user',
             email: process.env.FLOWISE_USERNAME || 'admin@basic-auth.local',
@@ -419,7 +419,42 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
             // @ts-ignore
             status: 'active',
             // @ts-ignore
-            role: 'admin'
+            role: 'admin',
+            // Add all necessary enterprise fields for basic auth
+            permissions: [
+                'chatflows:create',
+                'chatflows:view',
+                'chatflows:update',
+                'chatflows:delete',
+                'chatflows:import',
+                'credentials:create',
+                'credentials:view',
+                'credentials:update',
+                'credentials:delete',
+                'documentstore:create',
+                'documentstore:view',
+                'documentstore:update',
+                'documentstore:delete',
+                'executions:view',
+                'executions:delete',
+                'apikeys:create',
+                'apikeys:view',
+                'apikeys:update',
+                'apikeys:delete',
+                'evaluations:create',
+                'evaluations:view',
+                'evaluations:update',
+                'evaluations:delete',
+                'marketplaces:create',
+                'marketplaces:view',
+                'marketplaces:update',
+                'marketplaces:delete'
+            ],
+            isOrganizationAdmin: true,
+            activeOrganizationId: 'basic-auth-org',
+            activeWorkspaceId: 'basic-auth-workspace',
+            activeWorkspace: 'Basic Auth Workspace',
+            isApiKeyValidated: false
         }
         return next()
     }
