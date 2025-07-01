@@ -147,7 +147,14 @@ const saveChatflow = async (req: Request, res: Response, next: NextFunction) => 
 
         const newChatFlow = new ChatFlow()
         Object.assign(newChatFlow, body)
-        newChatFlow.workspaceId = workspaceId
+
+        // Handle special-case workspace IDs that shouldn't be stored as UUIDs
+        if (workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org') {
+            newChatFlow.workspaceId = workspaceId
+        } else {
+            // For special cases like basic auth, don't set workspaceId
+            newChatFlow.workspaceId = undefined
+        }
 
         // Ensure required fields are properly set
         newChatFlow.name = body.name.trim()

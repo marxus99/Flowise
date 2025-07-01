@@ -281,15 +281,22 @@ const saveChatflow = async (
                 step1Results.id,
                 incomingFlowData,
                 orgId,
-                workspaceId,
+                workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org' ? workspaceId : '',
                 subscriptionId,
                 usageCacheManager
             )
-            await _checkAndUpdateDocumentStoreUsage(step1Results, newChatFlow.workspaceId)
+            await _checkAndUpdateDocumentStoreUsage(
+                step1Results,
+                workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org' ? workspaceId : undefined
+            )
             dbResponse = await appServer.AppDataSource.getRepository(ChatFlow).save(step1Results)
         } else {
             const chatflow = appServer.AppDataSource.getRepository(ChatFlow).create(newChatFlow)
             dbResponse = await appServer.AppDataSource.getRepository(ChatFlow).save(chatflow)
+            await _checkAndUpdateDocumentStoreUsage(
+                dbResponse,
+                workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org' ? workspaceId : undefined
+            )
         }
         await appServer.telemetry.sendTelemetry(
             'chatflow_created',
@@ -405,13 +412,18 @@ const updateChatflow = async (
                 chatflow.id,
                 updateChatFlow.flowData,
                 orgId,
-                workspaceId,
+                workspaceId && workspaceId !== 'basic-auth-workspace' && workspaceId !== 'basic-auth-org' ? workspaceId : '',
                 subscriptionId,
                 appServer.usageCacheManager
             )
         }
         const newDbChatflow = appServer.AppDataSource.getRepository(ChatFlow).merge(chatflow, updateChatFlow)
-        await _checkAndUpdateDocumentStoreUsage(newDbChatflow, chatflow.workspaceId)
+        await _checkAndUpdateDocumentStoreUsage(
+            newDbChatflow,
+            chatflow.workspaceId && chatflow.workspaceId !== 'basic-auth-workspace' && chatflow.workspaceId !== 'basic-auth-org'
+                ? chatflow.workspaceId
+                : undefined
+        )
         const dbResponse = await appServer.AppDataSource.getRepository(ChatFlow).save(newDbChatflow)
 
         return dbResponse
