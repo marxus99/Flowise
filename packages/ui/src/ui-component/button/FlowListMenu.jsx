@@ -49,6 +49,10 @@ const StyledMenu = styled((props) => (
             vertical: 'top',
             horizontal: 'right'
         }}
+        MenuListProps={{
+            'aria-labelledby': 'flow-actions-button',
+            role: 'menu'
+        }}
         {...props}
     />
 ))(({ theme }) => ({
@@ -304,10 +308,11 @@ export default function FlowListMenu({ chatflow, isAgentCanvas, isAgentflowV2, s
     return (
         <div>
             <Button
-                id='demo-customized-button'
-                aria-controls={open ? 'demo-customized-menu' : undefined}
+                id='flow-actions-button'
+                aria-controls={open ? 'flow-actions-menu' : undefined}
                 aria-haspopup='true'
                 aria-expanded={open ? 'true' : undefined}
+                aria-label={`Actions for ${isAgentCanvas ? 'agentflow' : 'chatflow'} ${chatflow.name}`}
                 disableElevation
                 onClick={handleClick}
                 endIcon={<KeyboardArrowDownIcon />}
@@ -315,9 +320,9 @@ export default function FlowListMenu({ chatflow, isAgentCanvas, isAgentflowV2, s
                 Options
             </Button>
             <StyledMenu
-                id='demo-customized-menu'
+                id='flow-actions-menu'
                 MenuListProps={{
-                    'aria-labelledby': 'demo-customized-button'
+                    'aria-labelledby': 'flow-actions-button'
                 }}
                 anchorEl={anchorEl}
                 open={open}
@@ -397,8 +402,10 @@ export default function FlowListMenu({ chatflow, isAgentCanvas, isAgentflowV2, s
                     permissionId={isAgentCanvas ? 'agentflows:delete' : 'chatflows:delete'}
                     onClick={handleDelete}
                     disableRipple
+                    role='menuitem'
+                    aria-label={`Delete ${isAgentCanvas ? 'agentflow' : 'chatflow'} ${chatflow.name}`}
                 >
-                    <FileDeleteIcon />
+                    <FileDeleteIcon aria-hidden='true' />
                     Delete
                 </PermissionMenuItem>
             </StyledMenu>

@@ -67,7 +67,8 @@ const Sidebar = ({ drawerOpen, drawerToggle, window }) => {
                 flexShrink: { md: 0 },
                 width: matchUpMd ? drawerWidth : 'auto'
             }}
-            aria-label='mailbox folders'
+            aria-label='Navigation menu'
+            role='navigation'
         >
             {isAuthenticated && (
                 <Drawer
@@ -76,6 +77,8 @@ const Sidebar = ({ drawerOpen, drawerToggle, window }) => {
                     anchor='left'
                     open={drawerOpen}
                     onClose={drawerToggle}
+                    aria-label='Main navigation drawer'
+                    aria-hidden={!drawerOpen}
                     sx={{
                         '& .MuiDrawer-paper': {
                             width: drawerWidth,
@@ -88,7 +91,10 @@ const Sidebar = ({ drawerOpen, drawerToggle, window }) => {
                             borderColor: drawerOpen ? theme.palette.grey[900] + 25 : 'transparent'
                         }
                     }}
-                    ModalProps={{ keepMounted: true }}
+                    ModalProps={{
+                        keepMounted: true,
+                        'aria-describedby': 'drawer-description'
+                    }}
                     color='inherit'
                 >
                     {drawer}

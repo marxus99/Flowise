@@ -240,12 +240,18 @@ const SignInPage = () => {
             <MainCard maxWidth='sm'>
                 <Stack flexDirection='column' sx={{ width: '480px', gap: 3 }}>
                     {successMessage && (
-                        <Alert variant='filled' severity='success' onClose={() => setSuccessMessage('')}>
+                        <Alert variant='filled' severity='success' onClose={() => setSuccessMessage('')} role='alert' aria-live='polite'>
                             {successMessage}
                         </Alert>
                     )}
                     {authError && (
-                        <Alert icon={<IconExclamationCircle />} variant='filled' severity='error'>
+                        <Alert
+                            icon={<IconExclamationCircle aria-hidden='true' />}
+                            variant='filled'
+                            severity='error'
+                            role='alert'
+                            aria-live='assertive'
+                        >
                             {authError}
                         </Alert>
                     )}
@@ -283,17 +289,22 @@ const SignInPage = () => {
                             Debug: Basic Auth {isBasicAuthEnabled ? 'ENABLED' : 'DISABLED'}
                         </Typography>
                     </Stack>
-                    <form onSubmit={doLogin}>
+                    <form onSubmit={doLogin} aria-label='Sign in form'>
                         <Stack sx={{ width: '100%', flexDirection: 'column', alignItems: 'left', justifyContent: 'center', gap: 2 }}>
                             <Box sx={{ p: 0 }}>
                                 <div style={{ display: 'flex', flexDirection: 'row' }}>
-                                    <Typography>
+                                    <Typography component='label' htmlFor='username'>
                                         Email<span style={{ color: 'red' }}>&nbsp;*</span>
                                     </Typography>
                                     <div style={{ flexGrow: 1 }}></div>
                                 </div>
                                 <Input
-                                    inputParam={usernameInput}
+                                    inputParam={{
+                                        ...usernameInput,
+                                        label: 'Email address',
+                                        required: true,
+                                        id: 'username'
+                                    }}
                                     onChange={(newValue) => setUsernameVal(newValue)}
                                     value={usernameVal}
                                     showDialog={false}
@@ -301,12 +312,21 @@ const SignInPage = () => {
                             </Box>
                             <Box sx={{ p: 0 }}>
                                 <div style={{ display: 'flex', flexDirection: 'row' }}>
-                                    <Typography>
+                                    <Typography component='label' htmlFor='password'>
                                         Password<span style={{ color: 'red' }}>&nbsp;*</span>
                                     </Typography>
                                     <div style={{ flexGrow: 1 }}></div>
                                 </div>
-                                <Input inputParam={passwordInput} onChange={(newValue) => setPasswordVal(newValue)} value={passwordVal} />
+                                <Input
+                                    inputParam={{
+                                        ...passwordInput,
+                                        label: 'Password',
+                                        required: true,
+                                        id: 'password'
+                                    }}
+                                    onChange={(newValue) => setPasswordVal(newValue)}
+                                    value={passwordVal}
+                                />
                                 <Typography variant='body2' sx={{ color: theme.palette.grey[600], mt: 1, textAlign: 'right' }}>
                                     <Link style={{ color: theme.palette.primary.main }} to='/forgot-password'>
                                         Forgot password?
@@ -330,6 +350,8 @@ const SignInPage = () => {
                                 variant='contained'
                                 style={{ borderRadius: 12, height: 40, marginRight: 5 }}
                                 type='submit'
+                                aria-label='Sign in to your account'
+                                disabled={!usernameVal || !passwordVal}
                             >
                                 Login
                             </LoadingButton>

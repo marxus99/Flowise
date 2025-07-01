@@ -80,6 +80,8 @@ export const Input = ({ inputParam, value, nodes, edges, nodeId, onChange, disab
                         value={myValue}
                         name={inputParam.name}
                         autoComplete={getAutoComplete(inputParam.type, inputParam.name)}
+                        aria-label={inputParam.label || inputParam.name}
+                        aria-describedby={inputParam.description ? `${inputParam.name}-desc` : undefined}
                         onChange={(e) => {
                             setMyValue(e.target.value)
                             onChange(e.target.value)
@@ -117,6 +119,9 @@ export const Input = ({ inputParam, value, nodes, edges, nodeId, onChange, disab
                         value={myValue}
                         name={inputParam.name}
                         autoComplete={getAutoComplete(inputParam.type, inputParam.name)}
+                        aria-label={inputParam.label || inputParam.name}
+                        aria-describedby={inputParam.description ? `${inputParam.name}-desc` : undefined}
+                        aria-required={inputParam.required || inputParam.name === 'password' || inputParam.name === 'username'}
                         onChange={(e) => {
                             setMyValue(e.target.value)
                             onChange(e.target.value)

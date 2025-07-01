@@ -107,42 +107,49 @@ export const FlowListTable = ({
     return (
         <>
             <TableContainer sx={{ border: 1, borderColor: theme.palette.grey[900] + 25, borderRadius: 2 }} component={Paper}>
-                <Table sx={{ minWidth: 650 }} size='small' aria-label='a dense table'>
+                <Table sx={{ minWidth: 650 }} size='small' aria-label={`${isAgentCanvas ? 'Agentflows' : 'Chatflows'} table`} role='table'>
                     <TableHead
                         sx={{
                             backgroundColor: customization.isDarkMode ? theme.palette.common.black : theme.palette.grey[100],
                             height: 56
                         }}
+                        role='rowgroup'
                     >
-                        <TableRow>
-                            <StyledTableCell component='th' scope='row' style={{ width: '20%' }} key='0'>
-                                <TableSortLabel active={orderBy === 'name'} direction={order} onClick={() => handleRequestSort('name')}>
+                        <TableRow role='row'>
+                            <StyledTableCell component='th' scope='col' style={{ width: '20%' }} key='0'>
+                                <TableSortLabel
+                                    active={orderBy === 'name'}
+                                    direction={order}
+                                    onClick={() => handleRequestSort('name')}
+                                    aria-label='Sort by name'
+                                >
                                     Name
                                 </TableSortLabel>
                             </StyledTableCell>
-                            <StyledTableCell style={{ width: '25%' }} key='1'>
+                            <StyledTableCell component='th' scope='col' style={{ width: '25%' }} key='1'>
                                 Category
                             </StyledTableCell>
-                            <StyledTableCell style={{ width: '30%' }} key='2'>
+                            <StyledTableCell component='th' scope='col' style={{ width: '30%' }} key='2'>
                                 Nodes
                             </StyledTableCell>
-                            <StyledTableCell style={{ width: '15%' }} key='3'>
+                            <StyledTableCell component='th' scope='col' style={{ width: '15%' }} key='3'>
                                 <TableSortLabel
                                     active={orderBy === 'updatedDate'}
                                     direction={order}
                                     onClick={() => handleRequestSort('updatedDate')}
+                                    aria-label='Sort by last modified date'
                                 >
                                     Last Modified Date
                                 </TableSortLabel>
                             </StyledTableCell>
                             {isActionsAvailable && (
-                                <StyledTableCell style={{ width: '10%' }} key='4'>
+                                <StyledTableCell component='th' scope='col' style={{ width: '10%' }} key='4'>
                                     Actions
                                 </StyledTableCell>
                             )}
                         </TableRow>
                     </TableHead>
-                    <TableBody>
+                    <TableBody role='rowgroup'>
                         {isLoading ? (
                             <>
                                 <StyledTableRow>

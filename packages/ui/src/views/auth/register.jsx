@@ -289,40 +289,50 @@ const RegisterPage = () => {
                             .
                         </Typography>
                     </Stack>
-                    <form onSubmit={register} data-rewardful>
+                    <form onSubmit={register} data-rewardful aria-label='Registration form'>
                         <Stack sx={{ width: '100%', flexDirection: 'column', alignItems: 'left', justifyContent: 'center', gap: 2 }}>
                             <Box>
                                 <div style={{ display: 'flex', flexDirection: 'row' }}>
-                                    <Typography>
+                                    <Typography component='label' htmlFor='username'>
                                         Full Name<span style={{ color: 'red' }}>&nbsp;*</span>
                                     </Typography>
                                     <div style={{ flexGrow: 1 }}></div>
                                 </div>
                                 <Input
-                                    inputParam={usernameInput}
+                                    inputParam={{
+                                        ...usernameInput,
+                                        label: 'Full Name',
+                                        required: true,
+                                        id: 'username'
+                                    }}
                                     placeholder='Display Name'
                                     onChange={(newValue) => setUsername(newValue)}
                                     value={username}
                                     showDialog={false}
                                 />
-                                <Typography variant='caption'>
+                                <Typography variant='caption' id='username-desc'>
                                     <i>Is used for display purposes only.</i>
                                 </Typography>
                             </Box>
                             <Box>
                                 <div style={{ display: 'flex', flexDirection: 'row' }}>
-                                    <Typography>
+                                    <Typography component='label' htmlFor='email'>
                                         Email<span style={{ color: 'red' }}>&nbsp;*</span>
                                     </Typography>
                                     <div style={{ flexGrow: 1 }}></div>
                                 </div>
                                 <Input
-                                    inputParam={emailInput}
+                                    inputParam={{
+                                        ...emailInput,
+                                        label: 'Email address',
+                                        required: true,
+                                        id: 'email'
+                                    }}
                                     onChange={(newValue) => setEmail(newValue)}
                                     value={email}
                                     showDialog={false}
                                 />
-                                <Typography variant='caption'>
+                                <Typography variant='caption' id='email-desc'>
                                     <i>Kindly use a valid email address. Will be used as login id.</i>
                                 </Typography>
                             </Box>
