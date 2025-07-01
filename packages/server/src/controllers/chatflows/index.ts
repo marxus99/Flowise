@@ -132,9 +132,27 @@ const saveChatflow = async (req: Request, res: Response, next: NextFunction) => 
         const newChatflowCount = 1
         await checkUsageLimit('flows', subscriptionId, getRunningExpressApp().usageCacheManager, existingChatflowCount + newChatflowCount)
 
+        // Validate and initialize required fields
+        if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+            throw new InternalFlowiseError(
+                StatusCodes.BAD_REQUEST,
+                'Error: chatflowsController.saveChatflow - name is required and must be a non-empty string'
+            )
+        }
+
+        if (!body.flowData || typeof body.flowData !== 'string') {
+            // Initialize with default empty flow data if not provided
+            body.flowData = JSON.stringify({ nodes: [], edges: [] })
+        }
+
         const newChatFlow = new ChatFlow()
         Object.assign(newChatFlow, body)
         newChatFlow.workspaceId = workspaceId
+
+        // Ensure required fields are properly set
+        newChatFlow.name = body.name.trim()
+        newChatFlow.flowData = body.flowData
+
         const apiResponse = await chatflowsService.saveChatflow(
             newChatFlow,
             orgId,
@@ -200,8 +218,29 @@ const updateChatflow = async (req: Request, res: Response, next: NextFunction) =
         }
         const subscriptionId = req.user?.activeOrganizationSubscriptionId || ''
         const body = req.body
+
+        // Validate required fields if they are being updated
+        if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim() === '')) {
+            throw new InternalFlowiseError(
+                StatusCodes.BAD_REQUEST,
+                'Error: chatflowsController.updateChatflow - name must be a non-empty string'
+            )
+        }
+
+        if (body.flowData !== undefined && typeof body.flowData !== 'string') {
+            throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, 'Error: chatflowsController.updateChatflow - flowData must be a string')
+        }
+
         const updateChatFlow = new ChatFlow()
         Object.assign(updateChatFlow, body)
+
+        // Ensure required fields are properly set if provided
+        if (body.name !== undefined) {
+            updateChatFlow.name = body.name.trim()
+        }
+        if (body.flowData !== undefined) {
+            updateChatFlow.flowData = body.flowData
+        }
 
         updateChatFlow.id = chatflow.id
         const rateLimiterManager = RateLimiterManager.getInstance()

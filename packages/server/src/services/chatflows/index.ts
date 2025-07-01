@@ -247,6 +247,24 @@ const saveChatflow = async (
     try {
         const appServer = getRunningExpressApp()
 
+        // Validate required fields at the service level
+        if (!newChatFlow.name || typeof newChatFlow.name !== 'string' || newChatFlow.name.trim() === '') {
+            throw new InternalFlowiseError(
+                StatusCodes.BAD_REQUEST,
+                'Error: chatflowsService.saveChatflow - name is required and must be a non-empty string'
+            )
+        }
+
+        if (!newChatFlow.flowData || typeof newChatFlow.flowData !== 'string') {
+            throw new InternalFlowiseError(
+                StatusCodes.BAD_REQUEST,
+                'Error: chatflowsService.saveChatflow - flowData is required and must be a string'
+            )
+        }
+
+        // Ensure name is trimmed
+        newChatFlow.name = newChatFlow.name.trim()
+
         let dbResponse: ChatFlow
         if (containsBase64File(newChatFlow)) {
             // we need a 2-step process, as we need to save the chatflow first and then update the file paths
@@ -364,6 +382,24 @@ const updateChatflow = async (
 ): Promise<any> => {
     try {
         const appServer = getRunningExpressApp()
+
+        // Validate required fields if they are being updated
+        if (updateChatFlow.name !== undefined && (typeof updateChatFlow.name !== 'string' || updateChatFlow.name.trim() === '')) {
+            throw new InternalFlowiseError(
+                StatusCodes.BAD_REQUEST,
+                'Error: chatflowsService.updateChatflow - name must be a non-empty string'
+            )
+        }
+
+        if (updateChatFlow.flowData !== undefined && typeof updateChatFlow.flowData !== 'string') {
+            throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, 'Error: chatflowsService.updateChatflow - flowData must be a string')
+        }
+
+        // Trim name if it's being updated
+        if (updateChatFlow.name !== undefined) {
+            updateChatFlow.name = updateChatFlow.name.trim()
+        }
+
         if (updateChatFlow.flowData && containsBase64File(updateChatFlow)) {
             updateChatFlow.flowData = await updateFlowDataWithFilePaths(
                 chatflow.id,
