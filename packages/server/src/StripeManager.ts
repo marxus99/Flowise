@@ -29,6 +29,10 @@ export class StripeManager {
         return this.stripe
     }
 
+    public isStripeAvailable(): boolean {
+        return !!this.stripe
+    }
+
     public getSubscriptionObject(subscription: Stripe.Response<Stripe.Subscription>) {
         return {
             customer: subscription.customer,
@@ -39,7 +43,7 @@ export class StripeManager {
 
     public async getProductIdFromSubscription(subscriptionId: string) {
         if (!this.stripe) {
-            throw new Error('Stripe is not initialized')
+            return '' // Return empty string when Stripe is not available
         }
 
         const subscriptionData = await this.cacheManager.getSubscriptionDataFromCache(subscriptionId)

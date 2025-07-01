@@ -48,7 +48,7 @@ export class OrganizationUserService {
 
         // Handle basic auth case
         if (organizationId === 'basic-auth-org' && userId === 'basic-auth-user') {
-            const mockUser = {
+            const _mockUser = {
                 id: 'basic-auth-user',
                 email: 'admin@basic-auth.local',
                 name: 'Basic Auth Admin',

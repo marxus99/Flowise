@@ -42,7 +42,17 @@ export const getCurrentUsage = async (orgId: string, subscriptionId: string, usa
         }
     } catch (error) {
         logger.error(`[getCurrentUsage] Error getting usage: ${error}`)
-        throw error
+        // Return unlimited quotas if there's an error (e.g., Stripe not configured)
+        return {
+            predictions: {
+                usage: 0,
+                limit: -1
+            },
+            storage: {
+                usage: 0,
+                limit: -1
+            }
+        }
     }
 }
 
@@ -55,22 +65,28 @@ export const checkUsageLimit = async (
 ) => {
     if (!usageCacheManager || !subscriptionId) return
 
-    const quotas = await usageCacheManager.getQuotas(subscriptionId)
+    try {
+        const quotas = await usageCacheManager.getQuotas(subscriptionId)
 
-    let limit = -1
-    switch (type) {
-        case 'flows':
-            limit = quotas[LICENSE_QUOTAS.FLOWS_LIMIT]
-            break
-        case 'users':
-            limit = quotas[LICENSE_QUOTAS.USERS_LIMIT] + (Math.max(quotas[LICENSE_QUOTAS.ADDITIONAL_SEATS_LIMIT], 0) || 0)
-            break
-    }
+        let limit = -1
+        switch (type) {
+            case 'flows':
+                limit = quotas[LICENSE_QUOTAS.FLOWS_LIMIT]
+                break
+            case 'users':
+                limit = quotas[LICENSE_QUOTAS.USERS_LIMIT] + (Math.max(quotas[LICENSE_QUOTAS.ADDITIONAL_SEATS_LIMIT], 0) || 0)
+                break
+        }
 
-    if (limit === -1) return
+        if (limit === -1) return
 
-    if (currentUsage > limit) {
-        throw new InternalFlowiseError(StatusCodes.TOO_MANY_REQUESTS, `Limit exceeded: ${type}`)
+        if (currentUsage > limit) {
+            throw new InternalFlowiseError(StatusCodes.TOO_MANY_REQUESTS, `Limit exceeded: ${type}`)
+        }
+    } catch (error) {
+        // If there's an error getting quotas (e.g., Stripe not configured), allow the operation
+        logger.warn(`[checkUsageLimit] Could not check usage limit for ${type}: ${error}`)
+        return
     }
 }
 
@@ -83,64 +99,75 @@ export const updatePredictionsUsage = async (
 ) => {
     if (!usageCacheManager) return
 
-    const quotas = await usageCacheManager.getQuotas(subscriptionId)
-    const predictionsLimit = quotas[LICENSE_QUOTAS.PREDICTIONS_LIMIT]
+    try {
+        const quotas = await usageCacheManager.getQuotas(subscriptionId)
+        const predictionsLimit = quotas[LICENSE_QUOTAS.PREDICTIONS_LIMIT]
 
-    let currentPredictions = 0
-    const existingPredictions = await usageCacheManager.get(`predictions:${orgId}`)
-    if (existingPredictions) {
-        currentPredictions = 1 + (existingPredictions as number) > predictionsLimit ? predictionsLimit : 1 + (existingPredictions as number)
-    } else {
-        currentPredictions = 1
-    }
+        let currentPredictions = 0
+        const existingPredictions = await usageCacheManager.get(`predictions:${orgId}`)
+        if (existingPredictions) {
+            currentPredictions =
+                1 + (existingPredictions as number) > predictionsLimit ? predictionsLimit : 1 + (existingPredictions as number)
+        } else {
+            currentPredictions = 1
+        }
 
-    const currentTTL = await usageCacheManager.getTTL(`predictions:${orgId}`)
-    if (currentTTL) {
-        const currentTimestamp = Date.now()
-        const timeLeft = currentTTL - currentTimestamp
-        usageCacheManager.set(`predictions:${orgId}`, currentPredictions, timeLeft)
-    } else {
-        const subscriptionDetails = await usageCacheManager.getSubscriptionDetails(subscriptionId)
-        if (subscriptionDetails && subscriptionDetails.created) {
-            const MS_PER_DAY = 24 * 60 * 60 * 1000
-            const DAYS = 30
-            const approximateMonthMs = DAYS * MS_PER_DAY
-
-            // Calculate time elapsed since subscription creation
-            const createdTimestamp = subscriptionDetails.created * 1000 // Convert to milliseconds if timestamp is in seconds
+        const currentTTL = await usageCacheManager.getTTL(`predictions:${orgId}`)
+        if (currentTTL) {
             const currentTimestamp = Date.now()
-            const timeElapsed = currentTimestamp - createdTimestamp
-
-            // Calculate remaining time in the current month period
-            const timeLeft = approximateMonthMs - (timeElapsed % approximateMonthMs)
-
+            const timeLeft = currentTTL - currentTimestamp
             usageCacheManager.set(`predictions:${orgId}`, currentPredictions, timeLeft)
         } else {
-            // Fallback to default 30 days if no creation date
-            const MS_PER_DAY = 24 * 60 * 60 * 1000
-            const DAYS = 30
-            const approximateMonthMs = DAYS * MS_PER_DAY
-            usageCacheManager.set(`predictions:${orgId}`, currentPredictions, approximateMonthMs)
+            const subscriptionDetails = await usageCacheManager.getSubscriptionDetails(subscriptionId)
+            if (subscriptionDetails && subscriptionDetails.created) {
+                const MS_PER_DAY = 24 * 60 * 60 * 1000
+                const DAYS = 30
+                const approximateMonthMs = DAYS * MS_PER_DAY
+
+                // Calculate time elapsed since subscription creation
+                const createdTimestamp = subscriptionDetails.created * 1000 // Convert to milliseconds if timestamp is in seconds
+                const currentTimestamp = Date.now()
+                const timeElapsed = currentTimestamp - createdTimestamp
+
+                // Calculate remaining time in the current month period
+                const timeLeft = approximateMonthMs - (timeElapsed % approximateMonthMs)
+
+                usageCacheManager.set(`predictions:${orgId}`, currentPredictions, timeLeft)
+            } else {
+                // Fallback to default 30 days if no creation date
+                const MS_PER_DAY = 24 * 60 * 60 * 1000
+                const DAYS = 30
+                const approximateMonthMs = DAYS * MS_PER_DAY
+                usageCacheManager.set(`predictions:${orgId}`, currentPredictions, approximateMonthMs)
+            }
         }
+    } catch (error) {
+        logger.warn(`[updatePredictionsUsage] Could not update predictions usage: ${error}`)
+        return
     }
 }
 
 export const checkPredictions = async (orgId: string, subscriptionId: string, usageCacheManager: UsageCacheManager) => {
     if (!usageCacheManager || !subscriptionId) return
 
-    const currentPredictions: number = (await usageCacheManager.get(`predictions:${orgId}`)) || 0
+    try {
+        const currentPredictions: number = (await usageCacheManager.get(`predictions:${orgId}`)) || 0
 
-    const quotas = await usageCacheManager.getQuotas(subscriptionId)
-    const predictionsLimit = quotas[LICENSE_QUOTAS.PREDICTIONS_LIMIT]
-    if (predictionsLimit === -1) return
+        const quotas = await usageCacheManager.getQuotas(subscriptionId)
+        const predictionsLimit = quotas[LICENSE_QUOTAS.PREDICTIONS_LIMIT]
+        if (predictionsLimit === -1) return
 
-    if (currentPredictions >= predictionsLimit) {
-        throw new InternalFlowiseError(StatusCodes.TOO_MANY_REQUESTS, 'Predictions limit exceeded')
-    }
+        if (currentPredictions >= predictionsLimit) {
+            throw new InternalFlowiseError(StatusCodes.TOO_MANY_REQUESTS, 'Predictions limit exceeded')
+        }
 
-    return {
-        usage: currentPredictions,
-        limit: predictionsLimit
+        return {
+            usage: currentPredictions,
+            limit: predictionsLimit
+        }
+    } catch (error) {
+        logger.warn(`[checkPredictions] Could not check predictions limit: ${error}`)
+        return
     }
 }
 
@@ -153,19 +180,24 @@ export const updateStorageUsage = (orgId: string, _: string = '', totalSize: num
 export const checkStorage = async (orgId: string, subscriptionId: string, usageCacheManager: UsageCacheManager) => {
     if (!usageCacheManager || !subscriptionId) return
 
-    let currentStorageUsage = 0
-    currentStorageUsage = (await usageCacheManager.get(`storage:${orgId}`)) || 0
+    try {
+        let currentStorageUsage = 0
+        currentStorageUsage = (await usageCacheManager.get(`storage:${orgId}`)) || 0
 
-    const quotas = await usageCacheManager.getQuotas(subscriptionId)
-    const storageLimit = quotas[LICENSE_QUOTAS.STORAGE_LIMIT]
-    if (storageLimit === -1) return
+        const quotas = await usageCacheManager.getQuotas(subscriptionId)
+        const storageLimit = quotas[LICENSE_QUOTAS.STORAGE_LIMIT]
+        if (storageLimit === -1) return
 
-    if (currentStorageUsage >= storageLimit) {
-        throw new InternalFlowiseError(StatusCodes.TOO_MANY_REQUESTS, 'Storage limit exceeded')
-    }
+        if (currentStorageUsage >= storageLimit) {
+            throw new InternalFlowiseError(StatusCodes.TOO_MANY_REQUESTS, 'Storage limit exceeded')
+        }
 
-    return {
-        usage: currentStorageUsage,
-        limit: storageLimit
+        return {
+            usage: currentStorageUsage,
+            limit: storageLimit
+        }
+    } catch (error) {
+        logger.warn(`[checkStorage] Could not check storage limit: ${error}`)
+        return
     }
 }

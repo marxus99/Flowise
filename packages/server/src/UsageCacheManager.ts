@@ -66,7 +66,7 @@ export class UsageCacheManager {
 
     public async getSubscriptionDetails(subscriptionId: string, withoutCache: boolean = false): Promise<Record<string, any>> {
         const stripeManager = await StripeManager.getInstance()
-        if (!stripeManager || !subscriptionId) {
+        if (!stripeManager || !subscriptionId || !stripeManager.isStripeAvailable()) {
             return UNLIMITED_QUOTAS
         }
 
@@ -78,18 +78,25 @@ export class UsageCacheManager {
             }
         }
 
-        // If not in cache, retrieve from Stripe
-        const subscription = await stripeManager.getStripe().subscriptions.retrieve(subscriptionId)
+        try {
+            // If not in cache, retrieve from Stripe
+            const subscription = await stripeManager.getStripe().subscriptions.retrieve(subscriptionId)
 
-        // Update subscription data cache
-        await this.updateSubscriptionDataToCache(subscriptionId, { subsriptionDetails: stripeManager.getSubscriptionObject(subscription) })
+            // Update subscription data cache
+            await this.updateSubscriptionDataToCache(subscriptionId, {
+                subsriptionDetails: stripeManager.getSubscriptionObject(subscription)
+            })
 
-        return stripeManager.getSubscriptionObject(subscription)
+            return stripeManager.getSubscriptionObject(subscription)
+        } catch (error) {
+            console.error('Error retrieving subscription details from Stripe:', error)
+            return UNLIMITED_QUOTAS
+        }
     }
 
     public async getQuotas(subscriptionId: string, withoutCache: boolean = false): Promise<Record<string, number>> {
         const stripeManager = await StripeManager.getInstance()
-        if (!stripeManager || !subscriptionId) {
+        if (!stripeManager || !subscriptionId || !stripeManager.isStripeAvailable()) {
             return UNLIMITED_QUOTAS
         }
 
@@ -101,40 +108,45 @@ export class UsageCacheManager {
             }
         }
 
-        // If not in cache, retrieve from Stripe
-        const subscription = await stripeManager.getStripe().subscriptions.retrieve(subscriptionId)
-        const items = subscription.items.data
-        if (items.length === 0) {
-            return DISABLED_QUOTAS
-        }
-
-        const productId = items[0].price.product as string
-        const product = await stripeManager.getStripe().products.retrieve(productId)
-        const productMetadata = product.metadata
-
-        if (!productMetadata || Object.keys(productMetadata).length === 0) {
-            return DISABLED_QUOTAS
-        }
-
-        const quotas: Record<string, number> = {}
-        for (const key in productMetadata) {
-            if (key.startsWith('quota:')) {
-                quotas[key] = parseInt(productMetadata[key])
+        try {
+            // If not in cache, retrieve from Stripe
+            const subscription = await stripeManager.getStripe().subscriptions.retrieve(subscriptionId)
+            const items = subscription.items.data
+            if (items.length === 0) {
+                return DISABLED_QUOTAS
             }
+
+            const productId = items[0].price.product as string
+            const product = await stripeManager.getStripe().products.retrieve(productId)
+            const productMetadata = product.metadata
+
+            if (!productMetadata || Object.keys(productMetadata).length === 0) {
+                return DISABLED_QUOTAS
+            }
+
+            const quotas: Record<string, number> = {}
+            for (const key in productMetadata) {
+                if (key.startsWith('quota:')) {
+                    quotas[key] = parseInt(productMetadata[key])
+                }
+            }
+
+            const additionalSeatsItem = subscription.items.data.find(
+                (item) => (item.price.product as string) === process.env.ADDITIONAL_SEAT_ID
+            )
+            quotas[LICENSE_QUOTAS.ADDITIONAL_SEATS_LIMIT] = additionalSeatsItem?.quantity || 0
+
+            // Update subscription data cache with quotas
+            await this.updateSubscriptionDataToCache(subscriptionId, {
+                quotas,
+                subsriptionDetails: stripeManager.getSubscriptionObject(subscription)
+            })
+
+            return quotas
+        } catch (error) {
+            console.error('Error retrieving quotas from Stripe:', error)
+            return UNLIMITED_QUOTAS
         }
-
-        const additionalSeatsItem = subscription.items.data.find(
-            (item) => (item.price.product as string) === process.env.ADDITIONAL_SEAT_ID
-        )
-        quotas[LICENSE_QUOTAS.ADDITIONAL_SEATS_LIMIT] = additionalSeatsItem?.quantity || 0
-
-        // Update subscription data cache with quotas
-        await this.updateSubscriptionDataToCache(subscriptionId, {
-            quotas,
-            subsriptionDetails: stripeManager.getSubscriptionObject(subscription)
-        })
-
-        return quotas
     }
 
     public async getSubscriptionDataFromCache(subscriptionId: string) {
