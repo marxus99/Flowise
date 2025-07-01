@@ -154,6 +154,11 @@ async function getAllChatflowsCountByOrganization(type: ChatflowType, organizati
     try {
         const appServer = getRunningExpressApp()
 
+        // Handle basic auth case - return 0 count since basic auth doesn't use real organization structure
+        if (organizationId === 'basic-auth-org') {
+            return 0
+        }
+
         const workspaces = await appServer.AppDataSource.getRepository(Workspace).findBy({ organizationId })
         const workspaceIds = workspaces.map((workspace) => workspace.id)
         const chatflowsCount = await appServer.AppDataSource.getRepository(ChatFlow).countBy({

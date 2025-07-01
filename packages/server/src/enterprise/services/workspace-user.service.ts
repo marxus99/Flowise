@@ -282,6 +282,53 @@ export class WorkspaceUserService {
     public async readWorkspaceUserByOrganizationId(organizationId: string | undefined, queryRunner: QueryRunner) {
         const organization = await this.organizationService.readOrganizationById(organizationId, queryRunner)
         if (!organization) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, OrganizationErrorMessage.ORGANIZATION_NOT_FOUND)
+
+        // Handle basic auth case
+        if (organizationId === 'basic-auth-org') {
+            const mockWorkspaceUser = {
+                workspaceId: 'basic-auth-workspace',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: WorkspaceUserStatus.ACTIVE,
+                lastLogin: new Date().toISOString(),
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user',
+                isOrgOwner: true,
+                user: {
+                    id: 'basic-auth-user',
+                    email: 'admin@basic-auth.local',
+                    name: 'Basic Auth Admin',
+                    status: 'active',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                },
+                workspace: {
+                    id: 'basic-auth-workspace',
+                    name: 'Basic Auth Workspace',
+                    organizationId: 'basic-auth-org',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                },
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Admin',
+                    description: 'Basic Auth Admin Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            } as any
+
+            return [mockWorkspaceUser]
+        }
+
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
 
         const workspaceUsers = await queryRunner.manager

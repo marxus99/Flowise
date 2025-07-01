@@ -46,6 +46,46 @@ export class OrganizationUserService {
         const organization = await this.organizationService.readOrganizationById(organizationId, queryRunner)
         if (!organization) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, OrganizationErrorMessage.ORGANIZATION_NOT_FOUND)
 
+        // Handle basic auth case
+        if (organizationId === 'basic-auth-org' && userId === 'basic-auth-user') {
+            const mockUser = {
+                id: 'basic-auth-user',
+                email: 'admin@basic-auth.local',
+                name: 'Basic Auth Admin',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user'
+            }
+
+            const mockOrganizationUser = {
+                organizationId: 'basic-auth-org',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user',
+                isOrgOwner: true,
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Owner',
+                    description: 'Basic Auth Owner Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            } as any
+
+            return {
+                organization,
+                organizationUser: mockOrganizationUser
+            }
+        }
+
         // Handle basic auth user case
         let user
         if (userId === 'basic-auth-user') {
@@ -120,6 +160,43 @@ export class OrganizationUserService {
     public async readOrganizationUserByOrganizationId(organizationId: string | undefined, queryRunner: QueryRunner) {
         const organization = await this.organizationService.readOrganizationById(organizationId, queryRunner)
         if (!organization) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, OrganizationErrorMessage.ORGANIZATION_NOT_FOUND)
+
+        // Handle basic auth case
+        if (organizationId === 'basic-auth-org') {
+            const mockOrganizationUser = {
+                organizationId: 'basic-auth-org',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user',
+                isOrgOwner: true,
+                user: {
+                    id: 'basic-auth-user',
+                    email: 'admin@basic-auth.local',
+                    name: 'Basic Auth Admin',
+                    status: 'active',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                },
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Owner',
+                    description: 'Basic Auth Owner Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            } as any
+
+            return [mockOrganizationUser]
+        }
+
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
 
         const organizationUsers = await queryRunner.manager
@@ -169,6 +246,46 @@ export class OrganizationUserService {
         const role = await this.roleService.readRoleById(roleId, queryRunner)
         if (!role) throw new InternalFlowiseError(StatusCodes.NOT_FOUND, RoleErrorMessage.ROLE_NOT_FOUND)
         const ownerRole = await this.roleService.readGeneralRoleByName(GeneralRole.OWNER, queryRunner)
+
+        // Handle basic auth case
+        if (organizationId === 'basic-auth-org') {
+            const mockOrganizationUser = {
+                organizationId: 'basic-auth-org',
+                userId: 'basic-auth-user',
+                roleId: 'basic-auth-role',
+                status: 'active',
+                createdDate: new Date(),
+                updatedDate: new Date(),
+                createdBy: 'basic-auth-user',
+                updatedBy: 'basic-auth-user',
+                isOrgOwner: true,
+                user: {
+                    id: 'basic-auth-user',
+                    email: 'admin@basic-auth.local',
+                    name: 'Basic Auth Admin',
+                    status: 'active',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                },
+                role: {
+                    id: 'basic-auth-role',
+                    name: 'Owner',
+                    description: 'Basic Auth Owner Role',
+                    createdDate: new Date(),
+                    updatedDate: new Date(),
+                    createdBy: 'basic-auth-user',
+                    updatedBy: 'basic-auth-user'
+                }
+            } as any
+
+            // Return array based on roleId filter
+            if (roleId === 'basic-auth-role' || roleId === ownerRole?.id) {
+                return [mockOrganizationUser]
+            }
+            return []
+        }
 
         const orgUsers = await queryRunner.manager
             .createQueryBuilder(OrganizationUser, 'organizationUser')
@@ -376,6 +493,11 @@ export class OrganizationUserService {
     }
 
     public async deleteOrganizationUser(queryRunner: QueryRunner, organizationId: string | undefined, userId: string | undefined) {
+        // Handle basic auth case - cannot delete basic auth organization user
+        if (organizationId === 'basic-auth-org') {
+            throw new InternalFlowiseError(StatusCodes.BAD_REQUEST, 'Cannot delete basic auth organization user')
+        }
+
         const { organizationUser } = await this.readOrganizationUserByOrganizationIdUserId(organizationId, userId, queryRunner)
         if (!organizationUser)
             throw new InternalFlowiseError(StatusCodes.NOT_FOUND, OrganizationUserErrorMessage.ORGANIZATION_USER_NOT_FOUND)
