@@ -161,7 +161,57 @@ const AgentflowCanvas = () => {
             const flowData = JSON.parse(file)
             const nodes = flowData.nodes || []
 
-            setNodes(nodes)
+            // Properly initialize nodes when loading from flow data
+            const initializedNodes = nodes.map((node) => {
+                if (node.data && getNodesApi.data && getNodesApi.data.length > 0) {
+                    // Find the component node template for this node
+                    const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
+                    if (componentNode) {
+                        // Re-initialize the node data with the template while preserving saved inputs/outputs
+                        const savedInputs = node.data.inputs || {}
+                        const savedOutputs = node.data.outputs || {}
+                        const savedCredential = node.data.credential || ''
+                        const savedLabel = node.data.label || componentNode.label
+
+                        // Initialize node with the component template
+                        const initializedNodeData = initNode(cloneDeep(componentNode), node.id, true)
+
+                        // Restore saved inputs while keeping valid ones
+                        if (savedInputs && Object.keys(savedInputs).length > 0) {
+                            Object.keys(savedInputs).forEach((key) => {
+                                if (key in initializedNodeData.inputs) {
+                                    initializedNodeData.inputs[key] = savedInputs[key]
+                                }
+                            })
+                        }
+
+                        // Restore saved outputs
+                        if (savedOutputs && Object.keys(savedOutputs).length > 0) {
+                            Object.keys(savedOutputs).forEach((key) => {
+                                if (key in initializedNodeData.outputs) {
+                                    initializedNodeData.outputs[key] = savedOutputs[key]
+                                }
+                            })
+                        }
+
+                        // Restore saved credential
+                        if (savedCredential) {
+                            initializedNodeData.credential = savedCredential
+                        }
+
+                        // Restore saved label
+                        initializedNodeData.label = savedLabel
+
+                        return {
+                            ...node,
+                            data: initializedNodeData
+                        }
+                    }
+                }
+                return node
+            })
+
+            setNodes(initializedNodes)
             setEdges(flowData.edges || [])
             setTimeout(() => setDirty(), 0)
         } catch (e) {
@@ -221,7 +271,8 @@ const AgentflowCanvas = () => {
             rfInstanceObject.nodes = nodes
             const flowData = JSON.stringify(rfInstanceObject)
 
-            if (!chatflow.id) {
+            // Check if this is an existing chatflow (has ID) or a new one
+            if (!chatflow || !chatflow.id) {
                 const newChatflowBody = {
                     name: chatflowName,
                     deployed: false,
@@ -527,7 +578,58 @@ const AgentflowCanvas = () => {
         if (getSpecificChatflowApi.data) {
             const chatflow = getSpecificChatflowApi.data
             const initialFlow = chatflow.flowData ? JSON.parse(chatflow.flowData) : []
-            setNodes(initialFlow.nodes || [])
+
+            // Properly initialize nodes when loading from saved flow
+            const initializedNodes = (initialFlow.nodes || []).map((node) => {
+                if (node.data && getNodesApi.data && getNodesApi.data.length > 0) {
+                    // Find the component node template for this node
+                    const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
+                    if (componentNode) {
+                        // Re-initialize the node data with the template while preserving saved inputs/outputs
+                        const savedInputs = node.data.inputs || {}
+                        const savedOutputs = node.data.outputs || {}
+                        const savedCredential = node.data.credential || ''
+                        const savedLabel = node.data.label || componentNode.label
+
+                        // Initialize node with the component template
+                        const initializedNodeData = initNode(cloneDeep(componentNode), node.id, true)
+
+                        // Restore saved inputs while keeping valid ones
+                        if (savedInputs && Object.keys(savedInputs).length > 0) {
+                            Object.keys(savedInputs).forEach((key) => {
+                                if (key in initializedNodeData.inputs) {
+                                    initializedNodeData.inputs[key] = savedInputs[key]
+                                }
+                            })
+                        }
+
+                        // Restore saved outputs
+                        if (savedOutputs && Object.keys(savedOutputs).length > 0) {
+                            Object.keys(savedOutputs).forEach((key) => {
+                                if (key in initializedNodeData.outputs) {
+                                    initializedNodeData.outputs[key] = savedOutputs[key]
+                                }
+                            })
+                        }
+
+                        // Restore saved credential
+                        if (savedCredential) {
+                            initializedNodeData.credential = savedCredential
+                        }
+
+                        // Restore saved label
+                        initializedNodeData.label = savedLabel
+
+                        return {
+                            ...node,
+                            data: initializedNodeData
+                        }
+                    }
+                }
+                return node
+            })
+
+            setNodes(initializedNodes)
             setEdges(initialFlow.edges || [])
             dispatch({ type: SET_CHATFLOW, chatflow })
         } else if (getSpecificChatflowApi.error) {
@@ -535,7 +637,7 @@ const AgentflowCanvas = () => {
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [getSpecificChatflowApi.data, getSpecificChatflowApi.error])
+    }, [getSpecificChatflowApi.data, getSpecificChatflowApi.error, getNodesApi.data])
 
     // Create new chatflow successful
     useEffect(() => {
@@ -639,7 +741,15 @@ const AgentflowCanvas = () => {
     const [chatPopupOpen, setChatPopupOpen] = useState(false)
 
     useEffect(() => {
-        if (!chatflowId && !localStorage.getItem('duplicatedFlowData') && getNodesApi.data && nodes.length === 0) {
+        // Only create start node if we're creating a new flow (no chatflowId) and no duplicated flow data
+        // Also check that we haven't already loaded a specific chatflow
+        if (
+            !chatflowId &&
+            !localStorage.getItem('duplicatedFlowData') &&
+            getNodesApi.data &&
+            nodes.length === 0 &&
+            !getSpecificChatflowApi.data
+        ) {
             const startNodeData = getNodesApi.data.find((node) => node.name === 'startAgentflow')
             if (startNodeData) {
                 const clonedStartNodeData = cloneDeep(startNodeData)

@@ -51,7 +51,11 @@ const MarketplaceCanvasV2 = () => {
     useEffect(() => {
         if (flowData) {
             const initialFlow = JSON.parse(flowData)
-            setNodes(initialFlow.nodes || [])
+            const nodes = initialFlow.nodes || []
+
+            // For marketplace canvas, nodes are read-only so we don't need to initialize them
+            // They should already be properly structured from the marketplace data
+            setNodes(nodes)
             setEdges(initialFlow.edges || [])
         }
 
