@@ -88,13 +88,13 @@ const AgentflowCanvas = () => {
     // ==============================|| Snackbar ||============================== //
 
     useNotifier()
-    const enqueueSnackbar = (...args) => dispatch(enqueueSnackbarAction(...args))
-    const closeSnackbar = (...args) => dispatch(closeSnackbarAction(...args))
+    const enqueueSnackbar = useCallback((...args) => dispatch(enqueueSnackbarAction(...args)), [dispatch])
+    const closeSnackbar = useCallback((...args) => dispatch(closeSnackbarAction(...args)), [dispatch])
 
     // ==============================|| ReactFlow ||============================== //
 
-    const [nodes, setNodes, onNodesChange] = useNodesState()
-    const [edges, setEdges, onEdgesChange] = useEdgesState()
+    const [nodes, setNodes, _onNodesChange] = useNodesState()
+    const [edges, setEdges, _onEdgesChange] = useEdgesState()
 
     const [selectedNode, setSelectedNode] = useState(null)
     const [isSyncNodesButtonEnabled, setIsSyncNodesButtonEnabled] = useState(false)
@@ -159,63 +159,137 @@ const AgentflowCanvas = () => {
     const handleLoadFlow = (file) => {
         try {
             const flowData = JSON.parse(file)
+            if (!flowData || typeof flowData !== 'object') {
+                throw new Error('Invalid flow data format')
+            }
+
             const nodes = flowData.nodes || []
+            const edges = flowData.edges || []
 
-            // Properly initialize nodes when loading from flow data
-            const initializedNodes = nodes.map((node) => {
-                if (node.data && getNodesApi.data && getNodesApi.data.length > 0) {
-                    // Find the component node template for this node
+            if (process.env.NODE_ENV === 'development') {
+                if (process.env.NODE_ENV === 'development') {
+                    console.info(`Loading flow with ${nodes.length} nodes and ${edges.length} edges`)
+                }
+            }
+
+            // EXPERT LEVEL: Advanced node initialization with comprehensive validation
+            if (getNodesApi.data && getNodesApi.data.length > 0 && nodes.length > 0) {
+                const initializedNodes = nodes.map((node, index) => {
+                    // Validate node structure
+                    if (!node || !node.data || !node.data.name) {
+                        console.warn(`Invalid node at index ${index}:`, node)
+                        return node
+                    }
+
+                    // Find component template
                     const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
-                    if (componentNode) {
-                        // Re-initialize the node data with the template while preserving saved inputs/outputs
-                        const savedInputs = node.data.inputs || {}
-                        const savedOutputs = node.data.outputs || {}
-                        const savedCredential = node.data.credential || ''
-                        const savedLabel = node.data.label || componentNode.label
+                    if (!componentNode) {
+                        console.warn(`Component template not found for: ${node.data.name}`)
+                        return node
+                    }
 
-                        // Initialize node with the component template
+                    // Preserve comprehensive saved data
+                    const savedData = {
+                        inputs: { ...node.data.inputs } || {},
+                        outputs: { ...node.data.outputs } || {},
+                        credential: node.data.credential || '',
+                        label: node.data.label || componentNode.label,
+                        selected: false, // Reset selection state
+                        // Preserve additional properties
+                        ...(node.data.status && { status: node.data.status }),
+                        ...(node.data.category && { category: node.data.category }),
+                        ...(node.data.description && { description: node.data.description }),
+                        ...(node.data.documentation && { documentation: node.data.documentation })
+                    }
+
+                    try {
+                        // Initialize with fresh component template
                         const initializedNodeData = initNode(cloneDeep(componentNode), node.id, true)
 
-                        // Restore saved inputs while keeping valid ones
-                        if (savedInputs && Object.keys(savedInputs).length > 0) {
-                            Object.keys(savedInputs).forEach((key) => {
-                                if (key in initializedNodeData.inputs) {
-                                    initializedNodeData.inputs[key] = savedInputs[key]
+                        // Intelligently restore inputs with validation
+                        if (savedData.inputs && typeof savedData.inputs === 'object') {
+                            Object.keys(savedData.inputs).forEach((inputKey) => {
+                                if (
+                                    initializedNodeData.inputs &&
+                                    inputKey in initializedNodeData.inputs &&
+                                    savedData.inputs[inputKey] !== undefined
+                                ) {
+                                    initializedNodeData.inputs[inputKey] = savedData.inputs[inputKey]
                                 }
                             })
                         }
 
-                        // Restore saved outputs
-                        if (savedOutputs && Object.keys(savedOutputs).length > 0) {
-                            Object.keys(savedOutputs).forEach((key) => {
-                                if (key in initializedNodeData.outputs) {
-                                    initializedNodeData.outputs[key] = savedOutputs[key]
+                        // Restore outputs with validation
+                        if (savedData.outputs && typeof savedData.outputs === 'object') {
+                            Object.keys(savedData.outputs).forEach((outputKey) => {
+                                if (
+                                    initializedNodeData.outputs &&
+                                    outputKey in initializedNodeData.outputs &&
+                                    savedData.outputs[outputKey] !== undefined
+                                ) {
+                                    initializedNodeData.outputs[outputKey] = savedData.outputs[outputKey]
                                 }
                             })
                         }
 
-                        // Restore saved credential
-                        if (savedCredential) {
-                            initializedNodeData.credential = savedCredential
-                        }
-
-                        // Restore saved label
-                        initializedNodeData.label = savedLabel
+                        // Restore all other properties
+                        Object.assign(initializedNodeData, {
+                            credential: savedData.credential,
+                            label: savedData.label,
+                            selected: savedData.selected,
+                            ...(savedData.status && { status: savedData.status }),
+                            ...(savedData.category && { category: savedData.category }),
+                            ...(savedData.description && { description: savedData.description }),
+                            ...(savedData.documentation && { documentation: savedData.documentation })
+                        })
 
                         return {
                             ...node,
                             data: initializedNodeData
                         }
+                    } catch (error) {
+                        console.error(`Failed to initialize node ${node.data.name}:`, error)
+                        return node // Fallback to prevent data loss
+                    }
+                })
+
+                setNodes(initializedNodes)
+                if (process.env.NODE_ENV === 'development') {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.info(`Successfully loaded and initialized ${initializedNodes.length} nodes`)
                     }
                 }
-                return node
-            })
+            } else {
+                // Store raw nodes for later initialization
+                if (process.env.NODE_ENV === 'development') {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.info('Component templates not ready or no nodes to load, storing for later...')
+                    }
+                }
+                setNodes(nodes)
+            }
 
-            setNodes(initializedNodes)
-            setEdges(flowData.edges || [])
-            setTimeout(() => setDirty(), 0)
-        } catch (e) {
-            console.error(e)
+            setEdges(edges)
+
+            // Set dirty state after successful load for imported/duplicated flows
+            setTimeout(() => {
+                setDirty()
+            }, 100)
+        } catch (error) {
+            console.error('Error loading flow:', error)
+            enqueueSnackbar({
+                message: `Failed to load workflow: ${error.message}`,
+                options: {
+                    key: new Date().getTime() + Math.random(),
+                    variant: 'error',
+                    persist: true,
+                    action: (key) => (
+                        <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
+                            <IconX />
+                        </Button>
+                    )
+                }
+            })
         }
     }
 
@@ -251,45 +325,65 @@ const AgentflowCanvas = () => {
         }
     }
 
-    const handleSaveFlow = (chatflowName) => {
-        if (reactFlowInstance) {
-            const nodes = reactFlowInstance.getNodes().map((node) => {
-                const nodeData = cloneDeep(node.data)
-                if (Object.prototype.hasOwnProperty.call(nodeData.inputs, FLOWISE_CREDENTIAL_ID)) {
-                    nodeData.credential = nodeData.inputs[FLOWISE_CREDENTIAL_ID]
-                    nodeData.inputs = omit(nodeData.inputs, [FLOWISE_CREDENTIAL_ID])
-                }
-                node.data = {
-                    ...nodeData,
-                    selected: false,
-                    status: undefined
-                }
-                return node
-            })
+    const handleSaveFlow = useCallback(
+        (chatflowName) => {
+            if (reactFlowInstance) {
+                const nodes = reactFlowInstance.getNodes().map((node) => {
+                    const nodeData = cloneDeep(node.data)
+                    if (Object.prototype.hasOwnProperty.call(nodeData.inputs, FLOWISE_CREDENTIAL_ID)) {
+                        nodeData.credential = nodeData.inputs[FLOWISE_CREDENTIAL_ID]
+                        nodeData.inputs = omit(nodeData.inputs, [FLOWISE_CREDENTIAL_ID])
+                    }
+                    node.data = {
+                        ...nodeData,
+                        selected: false,
+                        status: undefined
+                    }
+                    return node
+                })
 
-            const rfInstanceObject = reactFlowInstance.toObject()
-            rfInstanceObject.nodes = nodes
-            const flowData = JSON.stringify(rfInstanceObject)
+                const rfInstanceObject = reactFlowInstance.toObject()
+                rfInstanceObject.nodes = nodes
+                const flowData = JSON.stringify(rfInstanceObject)
 
-            // Check if this is an existing chatflow (has ID) or a new one
-            if (!chatflow || !chatflow.id) {
-                const newChatflowBody = {
-                    name: chatflowName,
-                    deployed: false,
-                    isPublic: false,
-                    flowData,
-                    type: 'AGENTFLOW'
+                if (process.env.NODE_ENV === 'development') {
+                    console.info('Saving flow with nodes:', nodes.length, 'nodes')
+                    console.info(
+                        'Sample node data structure:',
+                        nodes[0]
+                            ? {
+                                  id: nodes[0].id,
+                                  type: nodes[0].type,
+                                  hasInputAnchors: Array.isArray(nodes[0].data?.inputAnchors),
+                                  hasOutputAnchors: Array.isArray(nodes[0].data?.outputAnchors),
+                                  hasInputParams: Array.isArray(nodes[0].data?.inputParams),
+                                  nodeName: nodes[0].data?.name
+                              }
+                            : 'No nodes to save'
+                    )
                 }
-                createNewChatflowApi.request(newChatflowBody)
-            } else {
-                const updateBody = {
-                    name: chatflowName,
-                    flowData
+
+                // Check if this is an existing chatflow (has ID) or a new one
+                if (!chatflow || !chatflow.id) {
+                    const newChatflowBody = {
+                        name: chatflowName,
+                        deployed: false,
+                        isPublic: false,
+                        flowData,
+                        type: 'AGENTFLOW'
+                    }
+                    createNewChatflowApi.request(newChatflowBody)
+                } else {
+                    const updateBody = {
+                        name: chatflowName,
+                        flowData
+                    }
+                    updateChatflowApi.request(chatflow.id, updateBody)
                 }
-                updateChatflowApi.request(chatflow.id, updateBody)
             }
-        }
-    }
+        },
+        [reactFlowInstance, chatflow, createNewChatflowApi, updateChatflowApi]
+    )
 
     // eslint-disable-next-line
     const onNodeClick = useCallback((event, clickedNode) => {
@@ -329,10 +423,28 @@ const AgentflowCanvas = () => {
         }
     })
 
-    const onDragOver = useCallback((event) => {
-        event.preventDefault()
-        event.dataTransfer.dropEffect = 'move'
-    }, [])
+    // EXPERT LEVEL: Enhanced drag over handler with validation
+    const onDragOver = useCallback(
+        (event) => {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+
+            // Validate drop target
+            const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect()
+            if (!reactFlowBounds) return
+
+            const position = reactFlowInstance?.project({
+                x: event.clientX - reactFlowBounds.left,
+                y: event.clientY - reactFlowBounds.top
+            })
+
+            // Ensure position is within valid bounds
+            if (position && (position.x < 0 || position.y < 0)) {
+                event.dataTransfer.dropEffect = 'none'
+            }
+        },
+        [reactFlowInstance, reactFlowWrapper]
+    )
 
     const onDrop = useCallback(
         (event) => {
@@ -552,9 +664,9 @@ const AgentflowCanvas = () => {
         })
     }
 
-    const setDirty = () => {
+    const setDirty = useCallback(() => {
         dispatch({ type: SET_DIRTY })
-    }
+    }, [dispatch])
 
     const checkIfSyncNodesAvailable = (nodes) => {
         const componentNodes = canvas.componentNodes
@@ -573,66 +685,135 @@ const AgentflowCanvas = () => {
 
     // ==============================|| useEffect ||============================== //
 
-    // Get specific chatflow successful
+    // EXPERT LEVEL FIX: Advanced race condition handling for chatflow loading
     useEffect(() => {
         if (getSpecificChatflowApi.data) {
             const chatflow = getSpecificChatflowApi.data
-            const initialFlow = chatflow.flowData ? JSON.parse(chatflow.flowData) : []
+            const initialFlow = chatflow.flowData ? JSON.parse(chatflow.flowData) : { nodes: [], edges: [] }
 
-            // Properly initialize nodes when loading from saved flow
-            const initializedNodes = (initialFlow.nodes || []).map((node) => {
-                if (node.data && getNodesApi.data && getNodesApi.data.length > 0) {
+            // Loading chatflow with flow data - validation check
+            const flowDataInfo = {
+                hasFlowData: !!chatflow.flowData,
+                nodesCount: initialFlow.nodes?.length || 0,
+                edgesCount: initialFlow.edges?.length || 0,
+                componentTemplatesReady: !!getNodesApi.data?.length
+            }
+            if (process.env.NODE_ENV === 'development') {
+                console.info('Loading chatflow with flow data:', flowDataInfo)
+            }
+
+            // CRITICAL: Bulletproof node initialization with comprehensive error handling
+            if (getNodesApi.data && getNodesApi.data.length > 0 && initialFlow.nodes && initialFlow.nodes.length > 0) {
+                if (process.env.NODE_ENV === 'development') {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.info('Initializing saved workflow nodes with component templates...')
+                    }
+                }
+
+                const initializedNodes = initialFlow.nodes.map((node, index) => {
+                    // Validate node structure
+                    if (!node || !node.data || !node.data.name) {
+                        console.warn(`Invalid node structure at index ${index}:`, node)
+                        return node
+                    }
+
                     // Find the component node template for this node
                     const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
-                    if (componentNode) {
-                        // Re-initialize the node data with the template while preserving saved inputs/outputs
-                        const savedInputs = node.data.inputs || {}
-                        const savedOutputs = node.data.outputs || {}
-                        const savedCredential = node.data.credential || ''
-                        const savedLabel = node.data.label || componentNode.label
+                    if (!componentNode) {
+                        console.warn(`Component template not found for node: ${node.data.name}`)
+                        return node
+                    }
 
-                        // Initialize node with the component template
+                    // Preserve all saved data before re-initialization
+                    const savedData = {
+                        inputs: { ...node.data.inputs } || {},
+                        outputs: { ...node.data.outputs } || {},
+                        credential: node.data.credential || '',
+                        label: node.data.label || componentNode.label,
+                        selected: node.data.selected || false,
+                        // Preserve any additional custom properties
+                        ...(node.data.status && { status: node.data.status }),
+                        ...(node.data.category && { category: node.data.category }),
+                        ...(node.data.description && { description: node.data.description }),
+                        ...(node.data.documentation && { documentation: node.data.documentation })
+                    }
+
+                    try {
+                        // Re-initialize node with fresh component template
                         const initializedNodeData = initNode(cloneDeep(componentNode), node.id, true)
 
-                        // Restore saved inputs while keeping valid ones
-                        if (savedInputs && Object.keys(savedInputs).length > 0) {
-                            Object.keys(savedInputs).forEach((key) => {
-                                if (key in initializedNodeData.inputs) {
-                                    initializedNodeData.inputs[key] = savedInputs[key]
+                        // Intelligently restore saved inputs (only valid ones)
+                        if (savedData.inputs && typeof savedData.inputs === 'object') {
+                            Object.keys(savedData.inputs).forEach((inputKey) => {
+                                if (initializedNodeData.inputs && inputKey in initializedNodeData.inputs) {
+                                    initializedNodeData.inputs[inputKey] = savedData.inputs[inputKey]
                                 }
                             })
                         }
 
-                        // Restore saved outputs
-                        if (savedOutputs && Object.keys(savedOutputs).length > 0) {
-                            Object.keys(savedOutputs).forEach((key) => {
-                                if (key in initializedNodeData.outputs) {
-                                    initializedNodeData.outputs[key] = savedOutputs[key]
+                        // Restore saved outputs (only valid ones)
+                        if (savedData.outputs && typeof savedData.outputs === 'object') {
+                            Object.keys(savedData.outputs).forEach((outputKey) => {
+                                if (initializedNodeData.outputs && outputKey in initializedNodeData.outputs) {
+                                    initializedNodeData.outputs[outputKey] = savedData.outputs[outputKey]
                                 }
                             })
                         }
 
-                        // Restore saved credential
-                        if (savedCredential) {
-                            initializedNodeData.credential = savedCredential
+                        // Restore other saved properties
+                        Object.assign(initializedNodeData, {
+                            credential: savedData.credential,
+                            label: savedData.label,
+                            selected: savedData.selected,
+                            ...(savedData.status && { status: savedData.status }),
+                            ...(savedData.category && { category: savedData.category }),
+                            ...(savedData.description && { description: savedData.description }),
+                            ...(savedData.documentation && { documentation: savedData.documentation })
+                        })
+
+                        if (process.env.NODE_ENV === 'development') {
+                            console.info(`Node ${node.data.name} initialized successfully with preserved data`)
                         }
-
-                        // Restore saved label
-                        initializedNodeData.label = savedLabel
-
                         return {
                             ...node,
                             data: initializedNodeData
                         }
+                    } catch (error) {
+                        console.error(`Failed to initialize node ${node.data.name}:`, error)
+                        // Fallback: return original node to prevent data loss
+                        return node
                     }
-                }
-                return node
-            })
+                })
 
-            setNodes(initializedNodes)
-            setEdges(initialFlow.edges || [])
+                setNodes(initializedNodes)
+                setEdges(initialFlow.edges || [])
+                if (process.env.NODE_ENV === 'development') {
+                    console.info(`Successfully initialized ${initializedNodes.length} nodes and ${initialFlow.edges?.length || 0} edges`)
+                }
+
+                // Set the flow as clean after successful load
+                setTimeout(() => {
+                    dispatch({ type: REMOVE_DIRTY })
+                }, 100)
+            } else if (initialFlow.nodes && initialFlow.nodes.length > 0) {
+                // Component nodes not yet loaded - store raw nodes for later initialization
+                if (process.env.NODE_ENV === 'development') {
+                    console.info('Component templates not ready, storing nodes for later initialization...')
+                }
+                setNodes(initialFlow.nodes)
+                setEdges(initialFlow.edges || [])
+            } else {
+                // Empty workflow
+                if (process.env.NODE_ENV === 'development') {
+                    console.info('Empty workflow loaded')
+                }
+                setNodes([])
+                setEdges([])
+            }
+
             dispatch({ type: SET_CHATFLOW, chatflow })
         } else if (getSpecificChatflowApi.error) {
+            console.error('Failed to load chatflow:', getSpecificChatflowApi.error)
             errorFailed(`Failed to retrieve ${canvasTitle}: ${getSpecificChatflowApi.error.response.data.message}`)
         }
 
@@ -726,15 +907,15 @@ const AgentflowCanvas = () => {
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [handlePaste])
 
     useEffect(() => {
         if (templateFlowData && templateFlowData.includes('"nodes":[') && templateFlowData.includes('],"edges":[')) {
-            handleLoadFlow(templateFlowData)
+            handleTemplateFlowSafely(templateFlowData)
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [templateFlowData])
+    }, [templateFlowData, handleTemplateFlowSafely])
 
     usePrompt('You have unsaved changes! Do you want to navigate away?', canvasDataStore.isDirty)
 
@@ -743,33 +924,547 @@ const AgentflowCanvas = () => {
     useEffect(() => {
         // Only create start node if we're creating a new flow (no chatflowId) and no duplicated flow data
         // Also check that we haven't already loaded a specific chatflow
-        if (
-            !chatflowId &&
-            !localStorage.getItem('duplicatedFlowData') &&
-            getNodesApi.data &&
-            nodes.length === 0 &&
-            !getSpecificChatflowApi.data
-        ) {
-            const startNodeData = getNodesApi.data.find((node) => node.name === 'startAgentflow')
-            if (startNodeData) {
-                const clonedStartNodeData = cloneDeep(startNodeData)
-                clonedStartNodeData.position = { x: 100, y: 100 }
-                const startNode = {
-                    id: 'startAgentflow_0',
-                    type: 'agentFlow',
-                    position: { x: 100, y: 100 },
-                    data: {
-                        ...initNode(clonedStartNodeData, 'startAgentflow_0', true),
-                        label: 'Start'
-                    }
+        // EXPERT LEVEL: Intelligent start node creation with comprehensive safeguards
+        const shouldCreateStartNode =
+            !chatflowId && // New workflow (no ID)
+            !localStorage.getItem('duplicatedFlowData') && // Not a duplicate
+            getNodesApi.data?.length > 0 && // Component templates available
+            nodes.length === 0 && // No existing nodes
+            !getSpecificChatflowApi.data && // Not loading existing chatflow
+            !getSpecificChatflowApi.loading // Not currently loading
+
+        if (shouldCreateStartNode) {
+            const startNodeTemplate = getNodesApi.data.find((node) => node.name === 'startAgentflow')
+            if (startNodeTemplate) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.info('Creating initial start node for new workflow...')
                 }
-                setNodes([startNode])
-                setEdges([])
+
+                try {
+                    const clonedTemplate = cloneDeep(startNodeTemplate)
+                    const startNode = {
+                        id: 'startAgentflow_0',
+                        type: 'agentFlow',
+                        position: { x: 100, y: 100 },
+                        data: {
+                            ...initNode(clonedTemplate, 'startAgentflow_0', true),
+                            label: 'Start',
+                            selected: false
+                        }
+                    }
+
+                    setNodes([startNode])
+                    setEdges([])
+                    if (process.env.NODE_ENV === 'development') {
+                        console.info('Start node created successfully')
+                    }
+                } catch (error) {
+                    console.error('Failed to create start node:', error)
+                }
+            } else {
+                console.warn('Start node template not found in component data')
             }
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [getNodesApi.data, chatflowId])
+    }, [getNodesApi.data, chatflowId, nodes.length, getSpecificChatflowApi.data, getSpecificChatflowApi.loading])
+
+    // EXPERT LEVEL: Advanced race condition handler with intelligent node detection
+    useEffect(() => {
+        // Only run if we have nodes and component templates are available
+        if (!nodes.length || !getNodesApi.data?.length) return
+
+        // Don't run if we're currently loading a specific chatflow (prevents race conditions)
+        if (getSpecificChatflowApi.loading) return
+
+        // Detect nodes that need re-initialization
+        const uninitialized = nodes.filter((node) => {
+            if (!node.data?.name) return false
+
+            // Check if node lacks essential structure (indicates incomplete initialization)
+            const lacksCriticalData =
+                !node.data.inputAnchors ||
+                !node.data.outputAnchors ||
+                !node.data.inputParams ||
+                !Array.isArray(node.data.inputAnchors) ||
+                !Array.isArray(node.data.outputAnchors) ||
+                !Array.isArray(node.data.inputParams)
+
+            return lacksCriticalData
+        })
+
+        if (uninitialized.length === 0) return
+
+        if (process.env.NODE_ENV === 'development') {
+            if (process.env.NODE_ENV === 'development') {
+                console.info(`Re-initializing ${uninitialized.length} incomplete nodes...`)
+            }
+        }
+
+        const reinitializedNodes = nodes.map((node) => {
+            // Skip nodes that are already properly initialized (check for arrays, not length)
+            if (
+                Array.isArray(node.data?.inputAnchors) &&
+                Array.isArray(node.data?.outputAnchors) &&
+                Array.isArray(node.data?.inputParams)
+            ) {
+                return node
+            }
+
+            // Skip nodes without valid data
+            if (!node.data?.name) return node
+
+            // Find component template
+            const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
+            if (!componentNode) {
+                console.warn(`Component template missing for: ${node.data.name}`)
+                return node
+            }
+
+            // Preserve all existing data
+            const preservedData = {
+                inputs: { ...node.data.inputs } || {},
+                outputs: { ...node.data.outputs } || {},
+                credential: node.data.credential || '',
+                label: node.data.label || componentNode.label,
+                selected: node.data.selected || false,
+                // Preserve any additional properties
+                ...(node.data.status && { status: node.data.status }),
+                ...(node.data.category && { category: node.data.category }),
+                ...(node.data.description && { description: node.data.description }),
+                ...(node.data.documentation && { documentation: node.data.documentation })
+            }
+
+            try {
+                // Create fresh initialized node
+                const freshNodeData = initNode(cloneDeep(componentNode), node.id, true)
+
+                // Carefully restore preserved data
+                if (preservedData.inputs && typeof preservedData.inputs === 'object') {
+                    Object.keys(preservedData.inputs).forEach((key) => {
+                        if (freshNodeData.inputs && key in freshNodeData.inputs) {
+                            freshNodeData.inputs[key] = preservedData.inputs[key]
+                        }
+                    })
+                }
+
+                if (preservedData.outputs && typeof preservedData.outputs === 'object') {
+                    Object.keys(preservedData.outputs).forEach((key) => {
+                        if (freshNodeData.outputs && key in freshNodeData.outputs) {
+                            freshNodeData.outputs[key] = preservedData.outputs[key]
+                        }
+                    })
+                }
+
+                // Restore all other properties
+                Object.assign(freshNodeData, {
+                    credential: preservedData.credential,
+                    label: preservedData.label,
+                    selected: preservedData.selected,
+                    ...(preservedData.status && { status: preservedData.status }),
+                    ...(preservedData.category && { category: preservedData.category }),
+                    ...(preservedData.description && { description: preservedData.description }),
+                    ...(preservedData.documentation && { documentation: preservedData.documentation })
+                })
+
+                return {
+                    ...node,
+                    data: freshNodeData
+                }
+            } catch (error) {
+                console.error(`Re-initialization failed for ${node.data.name}:`, error)
+                return node
+            }
+        })
+
+        setNodes(reinitializedNodes)
+        if (process.env.NODE_ENV === 'development') {
+            if (process.env.NODE_ENV === 'development') {
+                console.info('Node re-initialization completed successfully')
+            }
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [getNodesApi.data, nodes.length, getSpecificChatflowApi.loading])
+
+    // ==============================|| Advanced Node Recovery System ||============================== //
+
+    // EXPERT LEVEL: Comprehensive node recovery with automatic backup
+    const nodeRecoverySystem = useCallback(() => {
+        const currentNodes = reactFlowInstance?.getNodes() || []
+        const currentEdges = reactFlowInstance?.getEdges() || []
+
+        // Create backup of current state
+        const backupData = {
+            nodes: cloneDeep(currentNodes),
+            edges: cloneDeep(currentEdges),
+            timestamp: Date.now()
+        }
+
+        // Store backup in localStorage with expiration
+        const backupKey = `flowise_node_backup_${chatflowId || 'new'}`
+        localStorage.setItem(backupKey, JSON.stringify(backupData))
+
+        // Clean old backups (keep only last 5)
+        const allBackups = Object.keys(localStorage).filter((key) => key.startsWith('flowise_node_backup_'))
+        if (allBackups.length > 5) {
+            allBackups.sort()
+            localStorage.removeItem(allBackups[0])
+        }
+
+        return backupData
+    }, [reactFlowInstance, chatflowId])
+
+    // EXPERT LEVEL: Smart node recovery from backup
+    const recoverNodesFromBackup = useCallback(() => {
+        try {
+            const backupKey = `flowise_node_backup_${chatflowId || 'new'}`
+            const backupData = localStorage.getItem(backupKey)
+
+            if (!backupData) {
+                console.warn('No backup data found for node recovery')
+                return false
+            }
+
+            const parsed = JSON.parse(backupData)
+            const { nodes: backupNodes, edges: backupEdges, timestamp } = parsed
+
+            // Check if backup is recent (within last 5 minutes)
+            const isRecentBackup = Date.now() - timestamp < 300000 // 5 minutes
+
+            if (!isRecentBackup) {
+                console.warn('Backup data is too old, skipping recovery')
+                return false
+            }
+
+            if (backupNodes && backupNodes.length > 0) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.info(`Recovering ${backupNodes.length} nodes from backup...`)
+                }
+                setNodes(backupNodes)
+                setEdges(backupEdges || [])
+
+                enqueueSnackbar({
+                    message: `Recovered ${backupNodes.length} nodes from backup`,
+                    options: {
+                        key: new Date().getTime() + Math.random(),
+                        variant: 'success',
+                        action: (key) => (
+                            <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
+                                <IconX />
+                            </Button>
+                        )
+                    }
+                })
+
+                return true
+            }
+        } catch (error) {
+            console.error('Failed to recover nodes from backup:', error)
+        }
+
+        return false
+    }, [chatflowId, setNodes, setEdges, enqueueSnackbar, closeSnackbar])
+
+    // EXPERT LEVEL: Intelligent node disappearance detection
+    const detectNodeDisappearance = useCallback(() => {
+        const currentNodes = reactFlowInstance?.getNodes() || []
+        const expectedNodeCount = nodes.length
+
+        // If we suddenly lose more than 50% of nodes, trigger recovery
+        if (expectedNodeCount > 0 && currentNodes.length < expectedNodeCount * 0.5) {
+            console.warn(`Node disappearance detected! Expected: ${expectedNodeCount}, Current: ${currentNodes.length}`)
+
+            // Attempt recovery
+            const recovered = recoverNodesFromBackup()
+
+            if (!recovered) {
+                // If recovery fails, show warning to user
+                enqueueSnackbar({
+                    message: `Warning: ${expectedNodeCount - currentNodes.length} nodes may have been lost. Please check your workflow.`,
+                    options: {
+                        key: new Date().getTime() + Math.random(),
+                        variant: 'warning',
+                        persist: true,
+                        action: (key) => (
+                            <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
+                                <IconX />
+                            </Button>
+                        )
+                    }
+                })
+            }
+        }
+    }, [reactFlowInstance, nodes.length, recoverNodesFromBackup, enqueueSnackbar, closeSnackbar])
+
+    // EXPERT LEVEL: Enhanced save function with validation
+    const handleSaveFlowWithValidation = useCallback(
+        (chatflowName) => {
+            if (!reactFlowInstance) {
+                console.error('ReactFlow instance not available')
+                return
+            }
+
+            const currentNodes = reactFlowInstance.getNodes()
+            const currentEdges = reactFlowInstance.getEdges()
+
+            // Validate nodes before saving
+            const validationIssues = validateNodeIntegrity(currentNodes, 'pre-save')
+
+            if (validationIssues.length > 0) {
+                console.warn('Node validation issues detected before save:', validationIssues)
+            }
+
+            // Validate edges integrity
+            if (currentEdges.length > 0) {
+                const nodeIds = new Set(currentNodes.map((node) => node.id))
+                const orphanedEdges = currentEdges.filter((edge) => !nodeIds.has(edge.source) || !nodeIds.has(edge.target))
+
+                if (orphanedEdges.length > 0) {
+                    console.warn(`Found ${orphanedEdges.length} orphaned edges before save`)
+                }
+            }
+
+            // Create backup before save
+            nodeRecoverySystem()
+
+            // Proceed with original save logic
+            handleSaveFlow(chatflowName)
+        },
+        [reactFlowInstance, nodeRecoverySystem, handleSaveFlow]
+    )
+
+    // EXPERT LEVEL: Auto-save with node validation
+    const autoSaveWithValidation = useCallback(() => {
+        if (!chatflow?.id || !reactFlowInstance) return
+
+        const currentNodes = reactFlowInstance.getNodes()
+
+        // Only auto-save if we have valid nodes
+        if (currentNodes.length > 0) {
+            const validationIssues = validateNodeIntegrity(currentNodes, 'auto-save')
+
+            if (validationIssues.length === 0) {
+                // Create backup
+                nodeRecoverySystem()
+
+                // Perform auto-save
+                const flowData = JSON.stringify(reactFlowInstance.toObject())
+                const autoSaveData = {
+                    flowData,
+                    timestamp: Date.now(),
+                    nodeCount: currentNodes.length
+                }
+
+                localStorage.setItem(`flowise_autosave_${chatflow.id}`, JSON.stringify(autoSaveData))
+                if (process.env.NODE_ENV === 'development') {
+                    console.info(`Auto-saved workflow with ${currentNodes.length} nodes`)
+                }
+            } else {
+                console.warn('Skipping auto-save due to node validation issues')
+            }
+        }
+    }, [chatflow?.id, reactFlowInstance, nodeRecoverySystem])
+
+    // ==============================|| render ||============================== //
+
+    // EXPERT LEVEL: React Error Boundary for Canvas
+    const [hasError, setHasError] = useState(false)
+    const [errorInfo, setErrorInfo] = useState(null)
+
+    // EXPERT LEVEL: Error recovery handler
+    const handleErrorRecovery = useCallback(() => {
+        try {
+            // Attempt to recover from backup
+            const recovered = recoverNodesFromBackup()
+
+            if (recovered) {
+                setHasError(false)
+                setErrorInfo(null)
+
+                enqueueSnackbar({
+                    message: 'Workflow recovered successfully from backup',
+                    options: {
+                        key: new Date().getTime() + Math.random(),
+                        variant: 'success',
+                        action: (key) => (
+                            <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
+                                <IconX />
+                            </Button>
+                        )
+                    }
+                })
+            } else {
+                // Reset to empty state
+                setNodes([])
+                setEdges([])
+                setHasError(false)
+                setErrorInfo(null)
+
+                enqueueSnackbar({
+                    message: 'Workflow reset to empty state. Please reload your saved workflow.',
+                    options: {
+                        key: new Date().getTime() + Math.random(),
+                        variant: 'warning',
+                        persist: true,
+                        action: (key) => (
+                            <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
+                                <IconX />
+                            </Button>
+                        )
+                    }
+                })
+            }
+        } catch (error) {
+            console.error('Error recovery failed:', error)
+            // Force refresh as last resort
+            window.location.reload()
+        }
+    }, [recoverNodesFromBackup, setNodes, setEdges, enqueueSnackbar, closeSnackbar])
+
+    // EXPERT LEVEL: Global error handler for the canvas
+    useEffect(() => {
+        const handleError = (error) => {
+            console.error('Canvas error detected:', error)
+            setHasError(true)
+            setErrorInfo(error.message || 'Unknown error occurred')
+
+            // Create emergency backup
+            nodeRecoverySystem()
+        }
+
+        const handleUnhandledRejection = (event) => {
+            console.error('Unhandled promise rejection in canvas:', event.reason)
+            handleError(event.reason)
+        }
+
+        window.addEventListener('error', handleError)
+        window.addEventListener('unhandledrejection', handleUnhandledRejection)
+
+        return () => {
+            window.removeEventListener('error', handleError)
+            window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+        }
+    }, [nodeRecoverySystem])
+
+    // EXPERT LEVEL: Enhanced onNodesChange with validation
+    const onNodesChangeWithValidation = useCallback(
+        (changes) => {
+            // Create backup before major changes
+            if (changes.some((change) => change.type === 'remove')) {
+                nodeRecoverySystem()
+            }
+
+            // Apply changes
+            _onNodesChange(changes)
+
+            // Validate integrity after changes
+            setTimeout(() => {
+                const currentNodes = reactFlowInstance?.getNodes() || []
+                if (currentNodes.length > 0) {
+                    validateNodeIntegrity(currentNodes, 'post-change')
+                }
+            }, 100)
+
+            // Mark as dirty
+            setDirty()
+        },
+        [_onNodesChange, nodeRecoverySystem, reactFlowInstance, setDirty]
+    )
+
+    // EXPERT LEVEL: Enhanced onEdgesChange with validation
+    const onEdgesChangeWithValidation = useCallback(
+        (changes) => {
+            // Create backup before major changes
+            if (changes.some((change) => change.type === 'remove')) {
+                nodeRecoverySystem()
+            }
+
+            // Apply changes
+            _onEdgesChange(changes)
+
+            // Mark as dirty
+            setDirty()
+        },
+        [_onEdgesChange, nodeRecoverySystem, setDirty]
+    )
+
+    // EXPERT LEVEL: Node integrity monitoring with auto-recovery
+    useEffect(() => {
+        if (!reactFlowInstance) return
+
+        const integrityCheckInterval = setInterval(() => {
+            try {
+                detectNodeDisappearance()
+            } catch (error) {
+                console.error('Node integrity check failed:', error)
+            }
+        }, 5000) // Check every 5 seconds
+
+        return () => {
+            clearInterval(integrityCheckInterval)
+        }
+    }, [reactFlowInstance, detectNodeDisappearance])
+
+    // EXPERT LEVEL: Auto-save with validation every 30 seconds
+    useEffect(() => {
+        if (!chatflow?.id) return
+
+        const autoSaveInterval = setInterval(() => {
+            try {
+                autoSaveWithValidation()
+            } catch (error) {
+                console.error('Auto-save failed:', error)
+            }
+        }, 30000) // Auto-save every 30 seconds
+
+        return () => {
+            clearInterval(autoSaveInterval)
+        }
+    }, [chatflow?.id, autoSaveWithValidation])
+
+    // EXPERT LEVEL: Render error boundary UI
+    const renderErrorBoundary = () => (
+        <Box
+            sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100vh',
+                padding: 3,
+                textAlign: 'center'
+            }}
+        >
+            <IconRefreshAlert size={48} color='error' />
+            <h2>Workflow Error Detected</h2>
+            <p>An error occurred while rendering the workflow canvas.</p>
+            {errorInfo && (
+                <pre
+                    style={{
+                        background: '#f5f5f5',
+                        padding: '10px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        maxWidth: '600px',
+                        overflow: 'auto'
+                    }}
+                >
+                    {errorInfo}
+                </pre>
+            )}
+            <Button variant='contained' onClick={handleErrorRecovery} sx={{ mt: 2 }}>
+                Recover Workflow
+            </Button>
+            <Button variant='outlined' onClick={() => window.location.reload()} sx={{ mt: 1 }}>
+                Reload Page
+            </Button>
+        </Box>
+    )
+
+    if (hasError) {
+        return renderErrorBoundary()
+    }
 
     return (
         <>
@@ -801,7 +1496,7 @@ const AgentflowCanvas = () => {
                     <Toolbar>
                         <CanvasHeader
                             chatflow={chatflow}
-                            handleSaveFlow={handleSaveFlow}
+                            handleSaveFlow={handleSaveFlowWithValidation}
                             handleDeleteFlow={handleDeleteFlow}
                             handleLoadFlow={handleLoadFlow}
                             isAgentCanvas={true}
@@ -815,10 +1510,10 @@ const AgentflowCanvas = () => {
                             <ReactFlow
                                 nodes={nodes}
                                 edges={edges}
-                                onNodesChange={onNodesChange}
+                                onNodesChange={onNodesChangeWithValidation}
                                 onNodeClick={onNodeClick}
                                 onNodeDoubleClick={onNodeDoubleClick}
-                                onEdgesChange={onEdgesChange}
+                                onEdgesChange={onEdgesChangeWithValidation}
                                 onDrop={onDrop}
                                 onDragOver={onDragOver}
                                 onNodeDragStop={setDirty}
