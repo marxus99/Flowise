@@ -162,18 +162,21 @@ const Canvas = () => {
         setEdges((eds) => addEdge(newEdge, eds))
     }
 
-    const handleLoadFlow = (file) => {
-        try {
-            const flowData = JSON.parse(file)
-            const nodes = flowData.nodes || []
+    const handleLoadFlow = useCallback(
+        (file) => {
+            try {
+                const flowData = JSON.parse(file)
+                const nodes = flowData.nodes || []
 
-            setNodes(nodes)
-            setEdges(flowData.edges || [])
-            setTimeout(() => setDirty(), 0)
-        } catch (e) {
-            console.error(e)
-        }
-    }
+                setNodes(nodes)
+                setEdges(flowData.edges || [])
+                setTimeout(() => setDirty(), 0)
+            } catch (e) {
+                console.error(e)
+            }
+        },
+        [setNodes, setEdges, setDirty]
+    )
 
     const handleDeleteFlow = async () => {
         const confirmPayload = {
@@ -377,9 +380,9 @@ const Canvas = () => {
         })
     }
 
-    const setDirty = () => {
+    const setDirty = useCallback(() => {
         dispatch({ type: SET_DIRTY })
-    }
+    }, [dispatch])
 
     const checkIfUpsertAvailable = (nodes, edges) => {
         const upsertNodeDetails = getUpsertDetails(nodes, edges)
@@ -529,23 +532,23 @@ const Canvas = () => {
         setCanvasDataStore(canvas)
     }, [canvas])
 
-    useEffect(() => {
-        function handlePaste(e) {
+    const handlePaste = useCallback(
+        (e) => {
             const pasteData = e.clipboardData.getData('text')
-            //TODO: prevent paste event when input focused, temporary fix: catch chatflow syntax
+            // TODO: prevent paste event when input focused, temporary fix: catch chatflow syntax
             if (pasteData.includes('{"nodes":[') && pasteData.includes('],"edges":[')) {
                 handleLoadFlow(pasteData)
             }
-        }
+        },
+        [handleLoadFlow]
+    )
 
+    useEffect(() => {
         window.addEventListener('paste', handlePaste)
-
         return () => {
             window.removeEventListener('paste', handlePaste)
         }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [handlePaste])
 
     useEffect(() => {
         if (templateFlowData && templateFlowData.includes('"nodes":[') && templateFlowData.includes('],"edges":[')) {

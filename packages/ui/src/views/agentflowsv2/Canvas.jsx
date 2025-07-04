@@ -156,142 +156,145 @@ const AgentflowCanvas = () => {
         setEdges((eds) => addEdge(newEdge, eds))
     }
 
-    const handleLoadFlow = (file) => {
-        try {
-            const flowData = JSON.parse(file)
-            if (!flowData || typeof flowData !== 'object') {
-                throw new Error('Invalid flow data format')
-            }
-
-            const nodes = flowData.nodes || []
-            const edges = flowData.edges || []
-
-            if (process.env.NODE_ENV === 'development') {
-                if (process.env.NODE_ENV === 'development') {
-                    console.info(`Loading flow with ${nodes.length} nodes and ${edges.length} edges`)
+    const handleLoadFlow = useCallback(
+        (file) => {
+            try {
+                const flowData = JSON.parse(file)
+                if (!flowData || typeof flowData !== 'object') {
+                    throw new Error('Invalid flow data format')
                 }
-            }
 
-            // EXPERT LEVEL: Advanced node initialization with comprehensive validation
-            if (getNodesApi.data && getNodesApi.data.length > 0 && nodes.length > 0) {
-                const initializedNodes = nodes.map((node, index) => {
-                    // Validate node structure
-                    if (!node || !node.data || !node.data.name) {
-                        console.warn(`Invalid node at index ${index}:`, node)
-                        return node
+                const nodes = flowData.nodes || []
+                const edges = flowData.edges || []
+
+                if (process.env.NODE_ENV === 'development') {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.info(`Loading flow with ${nodes.length} nodes and ${edges.length} edges`)
                     }
+                }
 
-                    // Find component template
-                    const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
-                    if (!componentNode) {
-                        console.warn(`Component template not found for: ${node.data.name}`)
-                        return node
-                    }
+                // EXPERT LEVEL: Advanced node initialization with comprehensive validation
+                if (getNodesApi.data && getNodesApi.data.length > 0 && nodes.length > 0) {
+                    const initializedNodes = nodes.map((node, index) => {
+                        // Validate node structure
+                        if (!node || !node.data || !node.data.name) {
+                            console.warn(`Invalid node at index ${index}:`, node)
+                            return node
+                        }
 
-                    // Preserve comprehensive saved data
-                    const savedData = {
-                        inputs: { ...node.data.inputs } || {},
-                        outputs: { ...node.data.outputs } || {},
-                        credential: node.data.credential || '',
-                        label: node.data.label || componentNode.label,
-                        selected: false, // Reset selection state
-                        // Preserve additional properties
-                        ...(node.data.status && { status: node.data.status }),
-                        ...(node.data.category && { category: node.data.category }),
-                        ...(node.data.description && { description: node.data.description }),
-                        ...(node.data.documentation && { documentation: node.data.documentation })
-                    }
+                        // Find component template
+                        const componentNode = getNodesApi.data.find((cn) => cn.name === node.data.name)
+                        if (!componentNode) {
+                            console.warn(`Component template not found for: ${node.data.name}`)
+                            return node
+                        }
 
-                    try {
-                        // Initialize with fresh component template
-                        const initializedNodeData = initNode(cloneDeep(componentNode), node.id, true)
+                        // Preserve comprehensive saved data
+                        const savedData = {
+                            inputs: { ...node.data.inputs } || {},
+                            outputs: { ...node.data.outputs } || {},
+                            credential: node.data.credential || '',
+                            label: node.data.label || componentNode.label,
+                            selected: false, // Reset selection state
+                            // Preserve additional properties
+                            ...(node.data.status && { status: node.data.status }),
+                            ...(node.data.category && { category: node.data.category }),
+                            ...(node.data.description && { description: node.data.description }),
+                            ...(node.data.documentation && { documentation: node.data.documentation })
+                        }
 
-                        // Intelligently restore inputs with validation
-                        if (savedData.inputs && typeof savedData.inputs === 'object') {
-                            Object.keys(savedData.inputs).forEach((inputKey) => {
-                                if (
-                                    initializedNodeData.inputs &&
-                                    inputKey in initializedNodeData.inputs &&
-                                    savedData.inputs[inputKey] !== undefined
-                                ) {
-                                    initializedNodeData.inputs[inputKey] = savedData.inputs[inputKey]
-                                }
+                        try {
+                            // Initialize with fresh component template
+                            const initializedNodeData = initNode(cloneDeep(componentNode), node.id, true)
+
+                            // Intelligently restore inputs with validation
+                            if (savedData.inputs && typeof savedData.inputs === 'object') {
+                                Object.keys(savedData.inputs).forEach((inputKey) => {
+                                    if (
+                                        initializedNodeData.inputs &&
+                                        inputKey in initializedNodeData.inputs &&
+                                        savedData.inputs[inputKey] !== undefined
+                                    ) {
+                                        initializedNodeData.inputs[inputKey] = savedData.inputs[inputKey]
+                                    }
+                                })
+                            }
+
+                            // Restore outputs with validation
+                            if (savedData.outputs && typeof savedData.outputs === 'object') {
+                                Object.keys(savedData.outputs).forEach((outputKey) => {
+                                    if (
+                                        initializedNodeData.outputs &&
+                                        outputKey in initializedNodeData.outputs &&
+                                        savedData.outputs[outputKey] !== undefined
+                                    ) {
+                                        initializedNodeData.outputs[outputKey] = savedData.outputs[outputKey]
+                                    }
+                                })
+                            }
+
+                            // Restore all other properties
+                            Object.assign(initializedNodeData, {
+                                credential: savedData.credential,
+                                label: savedData.label,
+                                selected: savedData.selected,
+                                ...(savedData.status && { status: savedData.status }),
+                                ...(savedData.category && { category: savedData.category }),
+                                ...(savedData.description && { description: savedData.description }),
+                                ...(savedData.documentation && { documentation: savedData.documentation })
                             })
-                        }
 
-                        // Restore outputs with validation
-                        if (savedData.outputs && typeof savedData.outputs === 'object') {
-                            Object.keys(savedData.outputs).forEach((outputKey) => {
-                                if (
-                                    initializedNodeData.outputs &&
-                                    outputKey in initializedNodeData.outputs &&
-                                    savedData.outputs[outputKey] !== undefined
-                                ) {
-                                    initializedNodeData.outputs[outputKey] = savedData.outputs[outputKey]
-                                }
-                            })
+                            return {
+                                ...node,
+                                data: initializedNodeData
+                            }
+                        } catch (error) {
+                            console.error(`Failed to initialize node ${node.data.name}:`, error)
+                            return node // Fallback to prevent data loss
                         }
+                    })
 
-                        // Restore all other properties
-                        Object.assign(initializedNodeData, {
-                            credential: savedData.credential,
-                            label: savedData.label,
-                            selected: savedData.selected,
-                            ...(savedData.status && { status: savedData.status }),
-                            ...(savedData.category && { category: savedData.category }),
-                            ...(savedData.description && { description: savedData.description }),
-                            ...(savedData.documentation && { documentation: savedData.documentation })
-                        })
-
-                        return {
-                            ...node,
-                            data: initializedNodeData
+                    setNodes(initializedNodes)
+                    if (process.env.NODE_ENV === 'development') {
+                        if (process.env.NODE_ENV === 'development') {
+                            console.info(`Successfully loaded and initialized ${initializedNodes.length} nodes`)
                         }
-                    } catch (error) {
-                        console.error(`Failed to initialize node ${node.data.name}:`, error)
-                        return node // Fallback to prevent data loss
+                    }
+                } else {
+                    // Store raw nodes for later initialization
+                    if (process.env.NODE_ENV === 'development') {
+                        if (process.env.NODE_ENV === 'development') {
+                            console.info('Component templates not ready or no nodes to load, storing for later...')
+                        }
+                    }
+                    setNodes(nodes)
+                }
+
+                setEdges(edges)
+
+                // Set dirty state after successful load for imported/duplicated flows
+                setTimeout(() => {
+                    setDirty()
+                }, 100)
+            } catch (error) {
+                console.error('Error loading flow:', error)
+                enqueueSnackbar({
+                    message: `Failed to load workflow: ${error.message}`,
+                    options: {
+                        key: new Date().getTime() + Math.random(),
+                        variant: 'error',
+                        persist: true,
+                        action: (key) => (
+                            <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
+                                <IconX />
+                            </Button>
+                        )
                     }
                 })
-
-                setNodes(initializedNodes)
-                if (process.env.NODE_ENV === 'development') {
-                    if (process.env.NODE_ENV === 'development') {
-                        console.info(`Successfully loaded and initialized ${initializedNodes.length} nodes`)
-                    }
-                }
-            } else {
-                // Store raw nodes for later initialization
-                if (process.env.NODE_ENV === 'development') {
-                    if (process.env.NODE_ENV === 'development') {
-                        console.info('Component templates not ready or no nodes to load, storing for later...')
-                    }
-                }
-                setNodes(nodes)
             }
-
-            setEdges(edges)
-
-            // Set dirty state after successful load for imported/duplicated flows
-            setTimeout(() => {
-                setDirty()
-            }, 100)
-        } catch (error) {
-            console.error('Error loading flow:', error)
-            enqueueSnackbar({
-                message: `Failed to load workflow: ${error.message}`,
-                options: {
-                    key: new Date().getTime() + Math.random(),
-                    variant: 'error',
-                    persist: true,
-                    action: (key) => (
-                        <Button style={{ color: 'white' }} onClick={() => closeSnackbar(key)}>
-                            <IconX />
-                        </Button>
-                    )
-                }
-            })
-        }
-    }
+        },
+        [getNodesApi.data, setNodes, setEdges, setDirty, enqueueSnackbar, closeSnackbar]
+    )
 
     const handleDeleteFlow = async () => {
         const confirmPayload = {
@@ -891,22 +894,22 @@ const AgentflowCanvas = () => {
         setCanvasDataStore(canvas)
     }, [canvas])
 
-    useEffect(() => {
-        function handlePaste(e) {
+    const handlePaste = useCallback(
+        (e) => {
             const pasteData = e.clipboardData.getData('text')
-            //TODO: prevent paste event when input focused, temporary fix: catch chatflow syntax
+            // TODO: prevent paste event when input focused, temporary fix: catch chatflow syntax
             if (pasteData.includes('{"nodes":[') && pasteData.includes('],"edges":[')) {
                 handleLoadFlow(pasteData)
             }
-        }
+        },
+        [handleLoadFlow]
+    )
 
+    useEffect(() => {
         window.addEventListener('paste', handlePaste)
-
         return () => {
             window.removeEventListener('paste', handlePaste)
         }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [handlePaste])
 
     useEffect(() => {
@@ -1139,7 +1142,7 @@ const AgentflowCanvas = () => {
 
             if (backupNodes && backupNodes.length > 0) {
                 if (process.env.NODE_ENV === 'development') {
-                    console.info(`Recovering ${backupNodes.length} nodes from backup...`)
+                    console.info(`Recovered ${backupNodes.length} nodes from backup...`)
                 }
                 setNodes(backupNodes)
                 setEdges(backupEdges || [])
