@@ -17,7 +17,7 @@ export const containsBase64File = (chatflow: ChatFlow) => {
         if (inputs) {
             const keys = Object.getOwnPropertyNames(inputs)
             for (let i = 0; i < keys.length; i++) {
-                const input = inputs[keys[i]]
+                const input = typeof inputs === 'object' && inputs !== null && !Array.isArray(inputs) ? inputs[keys[i]] : undefined
                 if (!input) {
                     continue
                 }
@@ -72,7 +72,7 @@ export const updateFlowDataWithFilePaths = async (
                 for (let i = 0; i < keys.length; i++) {
                     const fileNames: string[] = []
                     const key = keys[i]
-                    const input = inputs?.[key]
+                    const input = typeof inputs === 'object' && inputs !== null && !Array.isArray(inputs) ? inputs[key] : undefined
                     if (!input) {
                         continue
                     }
@@ -87,7 +87,13 @@ export const updateFlowDataWithFilePaths = async (
                                 if (re.test(file)) {
                                     await checkStorage(orgId, subscriptionId, usageCacheManager)
                                     const { path, totalSize } = await addBase64FilesToStorage(file, chatflowid, fileNames, orgId)
-                                    node.data.inputs[key] = path
+                                    if (
+                                        typeof node.data.inputs === 'object' &&
+                                        node.data.inputs !== null &&
+                                        !Array.isArray(node.data.inputs)
+                                    ) {
+                                        ;(node.data.inputs as any)[key] = path
+                                    }
                                     await updateStorageUsage(orgId, workspaceId, totalSize, usageCacheManager)
                                 }
                             }
@@ -97,7 +103,9 @@ export const updateFlowDataWithFilePaths = async (
                     } else if (re.test(input)) {
                         await checkStorage(orgId, subscriptionId, usageCacheManager)
                         const { path, totalSize } = await addBase64FilesToStorage(input, chatflowid, fileNames, orgId)
-                        node.data.inputs[key] = path
+                        if (typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)) {
+                            ;(node.data.inputs as any)[key] = path
+                        }
                         await updateStorageUsage(orgId, workspaceId, totalSize, usageCacheManager)
                     }
                 }

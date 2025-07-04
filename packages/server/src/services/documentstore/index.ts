@@ -34,9 +34,10 @@ import {
     IExecutePreviewLoader,
     IExecuteProcessLoader,
     IExecuteVectorStoreInsert,
-    INodeData,
+    // INodeData,
     IOverrideConfig,
     MODE
+    // INodeOptionsValue
 } from '../../Interface'
 import { UsageCacheManager } from '../../UsageCacheManager'
 import { ChatFlow } from '../../database/entities/ChatFlow'
@@ -1581,7 +1582,7 @@ const _createVectorStoreNodeData = (componentNodes: IComponentNodes, data: IComm
 const _createVectorStoreObject = async (
     componentNodes: IComponentNodes,
     data: ICommonObject,
-    vStoreNodeData: INodeData,
+    vStoreNodeData: any,
     upsertHistory?: Record<string, any>
 ) => {
     const vStoreNodeInstanceFilePath = componentNodes[data.vectorStoreName].filePath as string

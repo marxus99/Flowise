@@ -11,11 +11,11 @@ import {
     IMessage,
     IServerSideEventStreamer,
     convertChatHistoryToText,
-    generateFollowUpPrompts
+    generateFollowUpPrompts,
+    INodeData
 } from 'flowise-components'
 import {
     IncomingAgentflowInput,
-    INodeData,
     IReactFlowObject,
     IExecuteFlowParams,
     IFlowConfig,
@@ -55,6 +55,7 @@ import { ChatMessage } from '../database/entities/ChatMessage'
 import { Telemetry } from './telemetry'
 import { getWorkspaceSearchOptions } from '../enterprise/utils/ControllerServiceUtils'
 import { UsageCacheManager } from '../UsageCacheManager'
+import { toINodeData } from './index'
 
 interface IWaitingNode {
     nodeId: string
@@ -397,7 +398,8 @@ export const resolveVariables = async (
     const getParamValues = async (paramsObj: ICommonObject) => {
         for (const key in paramsObj) {
             const paramValue = paramsObj[key]
-            const isAcceptVariable = reactFlowNodeData.inputParams.find((param) => param.name === key)?.acceptVariable ?? false
+            const isAcceptVariable =
+                (reactFlowNodeData as any).inputParams?.find((param: any) => param.name === key)?.acceptVariable ?? false
             if (isAcceptVariable) {
                 paramsObj[key] = await resolveNodeReference(paramValue)
             }
@@ -858,12 +860,13 @@ const executeNode = async ({
         // Stream progress event
         sseStreamer?.streamNextAgentFlowEvent(chatId, {
             nodeId,
-            nodeLabel: reactFlowNode.data.label,
+            nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
             status: 'INPROGRESS'
         })
 
         // Get node implementation
-        const nodeInstanceFilePath = componentNodes[reactFlowNode.data.name].filePath as string
+        const nodeName = typeof reactFlowNode.data.name === 'string' ? reactFlowNode.data.name : ''
+        const nodeInstanceFilePath = nodeName && componentNodes[nodeName] ? (componentNodes[nodeName].filePath as string) : ''
         const nodeModule = await import(nodeInstanceFilePath)
         const newNodeInstance = new nodeModule.nodeClass()
 
@@ -872,7 +875,12 @@ const executeNode = async ({
 
         // Apply config overrides if needed
         if (overrideConfig && apiOverrideStatus) {
-            flowNodeData = replaceInputsWithConfig(flowNodeData, overrideConfig, nodeOverrides, variableOverrides)
+            flowNodeData = replaceInputsWithConfig(
+                toINodeData(flowNodeData) as any,
+                overrideConfig,
+                nodeOverrides,
+                variableOverrides
+            ) as any
         }
 
         // Get available variables and resolve them
@@ -906,8 +914,8 @@ const executeNode = async ({
         }
 
         // Resolve variables in node data
-        const reactFlowNodeData: INodeData = await resolveVariables(
-            flowNodeData,
+        const reactFlowNodeData: INodeData = (await resolveVariables(
+            toINodeData(flowNodeData) as any,
             incomingInput.question ?? '',
             incomingInput.form ?? agentflowRuntime.form ?? {},
             flowConfig,
@@ -917,7 +925,7 @@ const executeNode = async ({
             chatHistory,
             agentFlowExecutedData,
             iterationContext
-        )
+        )) as any
 
         // Handle human input if present
         let humanInputAction: Record<string, any> | undefined
@@ -1144,14 +1152,14 @@ const executeNode = async ({
                 ],
                 data: {
                     nodeId,
-                    nodeLabel: reactFlowNode.data.label,
+                    nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                     input: results.input
                 }
             }
 
             const newWorkflowExecutedData: IAgentflowExecutedData = {
                 nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 data: {
                     ...results,
                     output: {
@@ -1166,7 +1174,7 @@ const executeNode = async ({
 
             sseStreamer?.streamNextAgentFlowEvent(chatId, {
                 nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 status: 'STOPPED'
             })
             sseStreamer?.streamAgentFlowExecutedDataEvent(chatId, agentFlowExecutedData)
@@ -1191,14 +1199,14 @@ const executeNode = async ({
                 ],
                 data: {
                     nodeId,
-                    nodeLabel: reactFlowNode.data.label,
+                    nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                     input: results.input
                 }
             }
 
             const newWorkflowExecutedData: IAgentflowExecutedData = {
                 nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 data: {
                     ...results,
                     output: {
@@ -1213,7 +1221,7 @@ const executeNode = async ({
 
             sseStreamer?.streamNextAgentFlowEvent(chatId, {
                 nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 status: 'STOPPED'
             })
             sseStreamer?.streamAgentFlowExecutedDataEvent(chatId, agentFlowExecutedData)
@@ -1306,9 +1314,14 @@ export const executeAgentFlow = async ({
     const edges = parsedFlowData.edges
     const { graph, nodeDependencies } = constructGraphs(nodes, edges)
     const { graph: reversedGraph } = constructGraphs(nodes, edges, { isReversed: true })
-    const startInputType = nodes.find((node) => node.data.name === 'startAgentflow')?.data.inputs?.startInputType as
-        | 'chatInput'
-        | 'formInput'
+    const startNode = nodes.find((node) => node.data.name === 'startAgentflow')
+    const startInputType =
+        startNode &&
+        typeof startNode.data.inputs === 'object' &&
+        startNode.data.inputs !== null &&
+        'startInputType' in startNode.data.inputs
+            ? (startNode.data.inputs.startInputType as 'chatInput' | 'formInput')
+            : undefined
     if (!startInputType && !isRecursive) {
         throw new Error('Start input type not found')
     }
@@ -1376,7 +1389,13 @@ export const executeAgentFlow = async ({
     }
 
     // If the state is persistent, get the state from the previous execution
-    const startPersistState = nodes.find((node) => node.data.name === 'startAgentflow')?.data.inputs?.startPersistState
+    const startPersistState =
+        startNode &&
+        typeof startNode.data.inputs === 'object' &&
+        startNode.data.inputs !== null &&
+        'startPersistState' in startNode.data.inputs
+            ? startNode.data.inputs.startPersistState
+            : undefined
     if (startPersistState === true && previousExecution) {
         const previousExecutionData = (JSON.parse(previousExecution.executionData) as IAgentflowExecutedData[]) ?? []
 
@@ -1585,7 +1604,7 @@ export const executeAgentFlow = async ({
                 throw new Error('Aborted')
             }
 
-            logger.debug(`   🎯 Executing node: ${reactFlowNode?.data.label}`)
+            logger.debug(`    Executing node: ${typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : ''}`)
 
             // Execute current node
             const executionResult = await executeNode({
@@ -1644,7 +1663,7 @@ export const executeAgentFlow = async ({
             // Add execution data
             agentFlowExecutedData.push({
                 nodeId: currentNode.nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 data: nodeResult,
                 previousNodeIds: reversedGraph[currentNode.nodeId],
                 status: 'FINISHED'
@@ -1652,7 +1671,7 @@ export const executeAgentFlow = async ({
 
             sseStreamer?.streamNextAgentFlowEvent(chatId, {
                 nodeId: currentNode.nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 status: 'FINISHED'
             })
 
@@ -1678,7 +1697,7 @@ export const executeAgentFlow = async ({
             // Process node outputs and handle branching
             const processResult = await processNodeOutputs({
                 nodeId: currentNode.nodeId,
-                nodeName: reactFlowNode.data.name,
+                nodeName: typeof reactFlowNode.data.name === 'string' ? reactFlowNode.data.name : '',
                 result: nodeResult,
                 humanInput: currentHumanInput,
                 graph,
@@ -1704,11 +1723,11 @@ export const executeAgentFlow = async ({
             // Add error info to execution data
             agentFlowExecutedData.push({
                 nodeId: currentNode.nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 previousNodeIds: reversedGraph[currentNode.nodeId] || [],
                 data: {
                     id: currentNode.nodeId,
-                    name: reactFlowNode.data.name,
+                    name: typeof reactFlowNode.data.name === 'string' ? reactFlowNode.data.name : '',
                     error: errorMessage
                 },
                 status: errorStatus
@@ -1717,7 +1736,7 @@ export const executeAgentFlow = async ({
             // Stream events to client
             sseStreamer?.streamNextAgentFlowEvent(chatId, {
                 nodeId: currentNode.nodeId,
-                nodeLabel: reactFlowNode.data.label,
+                nodeLabel: typeof reactFlowNode.data.label === 'string' ? reactFlowNode.data.label : '',
                 status: errorStatus,
                 error: isAborted ? undefined : errorMessage
             })

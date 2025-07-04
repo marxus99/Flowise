@@ -20,6 +20,7 @@ import { Variable } from '../../database/entities/Variable'
 import { getWorkspaceSearchOptions } from '../../enterprise/utils/ControllerServiceUtils'
 import { Workspace } from '../../enterprise/database/entities/workspace.entity'
 import { Organization } from '../../enterprise/database/entities/organization.entity'
+import { toINodeData } from '../../utils/index'
 
 const SOURCE_DOCUMENTS_PREFIX = '\n\n----FLOWISE_SOURCE_DOCUMENTS----\n\n'
 const ARTIFACTS_PREFIX = '\n\n----FLOWISE_ARTIFACTS----\n\n'
@@ -41,7 +42,10 @@ const buildAndInitTool = async (chatflowid: string, _chatId?: string, _apiMessag
     const edges = flowData.edges
 
     const toolAgentNode = nodes.find(
-        (node: IReactFlowNode) => node.data.inputAnchors.find((acr) => acr.type === 'Tool') && node.data.category === 'Agents'
+        (node: IReactFlowNode) =>
+            Array.isArray(node.data.inputAnchors) &&
+            node.data.inputAnchors.find((acr: any) => acr.type === 'Tool') &&
+            node.data.category === 'Agents'
     )
     if (!toolAgentNode) {
         throw new InternalFlowiseError(StatusCodes.NOT_FOUND, `Agent with tools not found in chatflow ${chatflowid}`)
@@ -125,7 +129,7 @@ const buildAndInitTool = async (chatflowid: string, _chatId?: string, _apiMessag
     const flowDataObj: ICommonObject = { chatflowid, chatId }
 
     const reactFlowNodeData: INodeData = await resolveVariables(
-        nodeToExecute.data,
+        toINodeData(nodeToExecute.data),
         reactFlowNodes,
         '',
         [],

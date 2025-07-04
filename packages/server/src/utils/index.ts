@@ -14,7 +14,6 @@ import {
     ICredentialReqBody,
     IDepthQueue,
     IExploredNode,
-    INodeData,
     INodeDependencies,
     INodeDirectedGraph,
     INodeOverrides,
@@ -27,10 +26,9 @@ import {
     IVariableOverride,
     IncomingInput
 } from '../Interface'
-import { cloneDeep, get, isEqual } from 'lodash'
+import { cloneDeep, isEqual } from 'lodash'
 import {
     convertChatHistoryToText,
-    getInputVariables,
     handleEscapeCharacters,
     getEncryptionKeyPath,
     ICommonObject,
@@ -66,6 +64,7 @@ import {
 } from '@aws-sdk/client-secrets-manager'
 import { checkStorage, updateStorageUsage } from './quotaUsage'
 import { UsageCacheManager } from '../UsageCacheManager'
+import { INodeData } from 'flowise-components'
 
 export const QUESTION_VAR_PREFIX = 'question'
 export const FILE_ATTACHMENT_PREFIX = 'file_attachment'
@@ -172,13 +171,17 @@ export const constructGraphs = (
             const source = reactFlowEdges[i].source
             const target = reactFlowEdges[i].target
 
-            if (Object.prototype.hasOwnProperty.call(graph, target)) {
-                graph[target].push(source)
-            } else {
-                graph[target] = [source]
+            if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
+                if (Array.isArray(graph[target])) {
+                    graph[target].push(source)
+                } else {
+                    graph[target] = [source]
+                }
             }
 
-            nodeDependencies[target] += 1
+            if (typeof nodeDependencies === 'object' && nodeDependencies !== null && !Array.isArray(nodeDependencies)) {
+                nodeDependencies[target] += 1
+            }
         }
 
         return { graph, nodeDependencies }
@@ -188,20 +191,26 @@ export const constructGraphs = (
         const source = reactFlowEdges[i].source
         const target = reactFlowEdges[i].target
 
-        if (Object.prototype.hasOwnProperty.call(graph, source)) {
-            graph[source].push(target)
-        } else {
-            graph[source] = [target]
+        if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
+            if (Array.isArray(graph[source])) {
+                graph[source].push(target)
+            } else {
+                graph[source] = [target]
+            }
         }
 
         if (options && options.isNonDirected) {
-            if (Object.prototype.hasOwnProperty.call(graph, target)) {
-                graph[target].push(source)
-            } else {
-                graph[target] = [source]
+            if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
+                if (Array.isArray(graph[target])) {
+                    graph[target].push(source)
+                } else {
+                    graph[target] = [source]
+                }
             }
         }
-        nodeDependencies[target] += 1
+        if (typeof nodeDependencies === 'object' && nodeDependencies !== null && !Array.isArray(nodeDependencies)) {
+            nodeDependencies[target] += 1
+        }
     }
 
     return { graph, nodeDependencies }
@@ -214,11 +223,13 @@ export const constructGraphs = (
 export const getStartingNode = (nodeDependencies: INodeDependencies) => {
     // Find starting node
     const startingNodeIds = [] as string[]
-    Object.keys(nodeDependencies).forEach((nodeId) => {
-        if (nodeDependencies[nodeId] === 0) {
-            startingNodeIds.push(nodeId)
-        }
-    })
+    if (typeof nodeDependencies === 'object' && nodeDependencies !== null && !Array.isArray(nodeDependencies)) {
+        Object.keys(nodeDependencies).forEach((nodeId) => {
+            if (nodeDependencies[nodeId] === 0) {
+                startingNodeIds.push(nodeId)
+            }
+        })
+    }
 
     return { startingNodeIds }
 }
@@ -229,17 +240,20 @@ export const getStartingNode = (nodeDependencies: INodeDependencies) => {
  * @param {string} endNodeId
  */
 export const getStartingNodes = (graph: INodeDirectedGraph, endNodeId: string) => {
-    const depthQueue: IDepthQueue = {
-        [endNodeId]: 0
-    }
+    const depthQueue: IDepthQueue = {}
+    depthQueue[endNodeId] = 0
 
     // Assuming that this is a directed acyclic graph, there will be no infinite loop problem.
     const walkGraph = (nodeId: string) => {
         const depth = depthQueue[nodeId]
-        graph[nodeId].flatMap((id) => {
-            depthQueue[id] = Math.max(depthQueue[id] ?? 0, depth + 1)
-            walkGraph(id)
-        })
+        if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
+            graph[nodeId].flatMap((id) => {
+                if (typeof depthQueue === 'object' && depthQueue !== null && !Array.isArray(depthQueue)) {
+                    depthQueue[id] = Math.max(depthQueue[id] ?? 0, depth + 1)
+                }
+                walkGraph(id)
+            })
+        }
     }
 
     walkGraph(endNodeId)
@@ -247,7 +261,7 @@ export const getStartingNodes = (graph: INodeDirectedGraph, endNodeId: string) =
     const maxDepth = Math.max(...Object.values(depthQueue))
     const depthQueueReversed: IDepthQueue = {}
     for (const nodeId in depthQueue) {
-        if (Object.prototype.hasOwnProperty.call(depthQueue, nodeId)) {
+        if (typeof depthQueue === 'object' && depthQueue !== null && !Array.isArray(depthQueue)) {
             depthQueueReversed[nodeId] = Math.abs(depthQueue[nodeId] - maxDepth)
         }
     }
@@ -271,16 +285,24 @@ export const getAllConnectedNodes = (graph: INodeDirectedGraph, startNodeId: str
     while (queue.length > 0) {
         const [currentNode] = queue.shift()!
 
-        if (visited.has(currentNode)) {
-            continue
+        if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
+            if (visited.has(currentNode)) {
+                continue
+            }
         }
 
-        visited.add(currentNode)
+        if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
+            visited.add(currentNode)
+        }
 
-        for (const neighbor of graph[currentNode]) {
-            if (!visited.has(neighbor)) {
-                queue.push([neighbor])
-            }
+        if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
+            graph[currentNode].flatMap((neighbor) => {
+                if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
+                    if (!visited.has(neighbor)) {
+                        queue.push([neighbor])
+                    }
+                }
+            })
         }
     }
 
@@ -299,13 +321,15 @@ export const getEndingNodes = (
     allNodes: IReactFlowNode[]
 ): IReactFlowNode[] => {
     const endingNodeIds: string[] = []
-    Object.keys(graph).forEach((nodeId) => {
-        if (Object.keys(nodeDependencies).length === 1) {
-            endingNodeIds.push(nodeId)
-        } else if (!graph[nodeId].length && nodeDependencies[nodeId] > 0) {
-            endingNodeIds.push(nodeId)
-        }
-    })
+    if (typeof nodeDependencies === 'object' && nodeDependencies !== null && !Array.isArray(nodeDependencies)) {
+        Object.keys(nodeDependencies).forEach((nodeId) => {
+            if (Object.keys(nodeDependencies).length === 1) {
+                endingNodeIds.push(nodeId)
+            } else if (!graph[nodeId].length && nodeDependencies[nodeId] > 0) {
+                endingNodeIds.push(nodeId)
+            }
+        })
+    }
 
     let endingNodes = allNodes.filter((nd) => endingNodeIds.includes(nd.id))
 
@@ -315,28 +339,32 @@ export const getEndingNodes = (
     let error: InternalFlowiseError | null = null
     for (const endingNode of endingNodes) {
         const endingNodeData = endingNode.data
-        if (!endingNodeData) {
-            error = new InternalFlowiseError(StatusCodes.INTERNAL_SERVER_ERROR, `Ending node ${endingNode.id} data not found`)
+        if (typeof endingNodeData === 'object' && endingNodeData !== null && !Array.isArray(endingNodeData)) {
+            const isEndingNode =
+                !endingNodeData.outputs ||
+                typeof endingNodeData.outputs !== 'object' ||
+                endingNodeData.outputs === null ||
+                !('output' in endingNodeData.outputs) ||
+                endingNodeData.outputs.output !== 'EndingNode'
 
-            continue
-        }
-
-        const isEndingNode = endingNodeData?.outputs?.output === 'EndingNode'
-
-        if (!isEndingNode) {
-            if (
-                endingNodeData &&
-                endingNodeData.category !== 'Chains' &&
-                endingNodeData.category !== 'Agents' &&
-                endingNodeData.category !== 'Engine' &&
-                endingNodeData.category !== 'Multi Agents' &&
-                endingNodeData.category !== 'Sequential Agents'
-            ) {
-                error = new InternalFlowiseError(StatusCodes.INTERNAL_SERVER_ERROR, `Ending node must be either a Chain or Agent or Engine`)
-                continue
+            if (!isEndingNode) {
+                if (
+                    endingNodeData &&
+                    endingNodeData.category !== 'Chains' &&
+                    endingNodeData.category !== 'Agents' &&
+                    endingNodeData.category !== 'Engine' &&
+                    endingNodeData.category !== 'Multi Agents' &&
+                    endingNodeData.category !== 'Sequential Agents'
+                ) {
+                    error = new InternalFlowiseError(
+                        StatusCodes.INTERNAL_SERVER_ERROR,
+                        `Ending node must be either a Chain or Agent or Engine`
+                    )
+                    continue
+                }
             }
+            verifiedEndingNodes.push(endingNode)
         }
-        verifiedEndingNodes.push(endingNode)
     }
 
     if (verifiedEndingNodes.length > 0) {
@@ -389,41 +417,40 @@ export const saveUpsertFlowData = (nodeData: INodeData, upsertHistory: Record<st
     const existingUpsertFlowData = upsertHistory['flowData'] ?? []
     const paramValues: ICommonObject[] = []
 
-    for (const input in nodeData.inputs) {
-        const inputParam = nodeData.inputParams.find((inp) => inp.name === input)
-        if (!inputParam) continue
+    if (typeof nodeData.inputs === 'object' && nodeData.inputs !== null && !Array.isArray(nodeData.inputs)) {
+        for (const input in nodeData.inputs) {
+            const inputParam = (nodeData as any).inputParams?.find((inp: any) => inp.name === input)
+            if (typeof inputParam === 'object' && inputParam !== null && !Array.isArray(inputParam)) {
+                let paramValue: ICommonObject = {}
 
-        let paramValue: ICommonObject = {}
+                if (
+                    typeof nodeData.inputs[input] === 'string' &&
+                    nodeData.inputs[input].startsWith('{{') &&
+                    nodeData.inputs[input].endsWith('}}')
+                ) {
+                    continue
+                }
+                // Get file name instead of the base64 string
+                if (nodeData.category === 'Document Loaders' && inputParam.type === 'file') {
+                    paramValue = {
+                        label: inputParam?.label,
+                        name: inputParam?.name,
+                        type: inputParam?.type,
+                        value: getFileName(nodeData.inputs[input] as string)
+                    }
+                    paramValues.push(paramValue)
+                    continue
+                }
 
-        if (!nodeData.inputs[input]) {
-            continue
-        }
-        if (
-            typeof nodeData.inputs[input] === 'string' &&
-            nodeData.inputs[input].startsWith('{{') &&
-            nodeData.inputs[input].endsWith('}}')
-        ) {
-            continue
-        }
-        // Get file name instead of the base64 string
-        if (nodeData.category === 'Document Loaders' && nodeData.inputParams.find((inp) => inp.name === input)?.type === 'file') {
-            paramValue = {
-                label: inputParam?.label,
-                name: inputParam?.name,
-                type: inputParam?.type,
-                value: getFileName(nodeData.inputs[input])
+                paramValue = {
+                    label: inputParam?.label,
+                    name: inputParam?.name,
+                    type: inputParam?.type,
+                    value: nodeData.inputs[input]
+                }
+                paramValues.push(paramValue)
             }
-            paramValues.push(paramValue)
-            continue
         }
-
-        paramValue = {
-            label: inputParam?.label,
-            name: inputParam?.name,
-            type: inputParam?.type,
-            value: nodeData.inputs[input]
-        }
-        paramValues.push(paramValue)
     }
 
     const newFlowData = {
@@ -454,21 +481,36 @@ const checkIfDocLoaderShouldBeIgnored = (
 ): boolean => {
     let outputId = ''
 
-    if (reactFlowNode.data.outputAnchors.length) {
-        if (Object.keys(reactFlowNode.data.outputs || {}).length) {
-            const output = reactFlowNode.data.outputs?.output
-            const node = reactFlowNode.data.outputAnchors[0].options?.find((anchor) => anchor.name === output)
+    if (
+        reactFlowNode.data.outputAnchors &&
+        Array.isArray(reactFlowNode.data.outputAnchors) &&
+        reactFlowNode.data.outputAnchors.length > 0
+    ) {
+        if (
+            reactFlowNode.data.outputs &&
+            typeof reactFlowNode.data.outputs === 'object' &&
+            reactFlowNode.data.outputs !== null &&
+            Object.keys(reactFlowNode.data.outputs).length
+        ) {
+            const output = (reactFlowNode.data.outputs as any).output
+            const optionsArr = reactFlowNode.data.outputAnchors[0].options
+            const node = Array.isArray(optionsArr) ? optionsArr.find((anchor: any) => anchor.name === output) : undefined
             if (node) outputId = (node as ICommonObject).id
         } else {
-            outputId = (reactFlowNode.data.outputAnchors[0] as ICommonObject).id
+            outputId = (reactFlowNode.data.outputAnchors[0] as ICommonObject)?.id
         }
     }
 
-    const targetNodeId = reactFlowEdges.find((edge) => edge.sourceHandle === outputId)?.target
-
-    if (targetNodeId) {
-        const targetNodeCategory = reactFlowNodes.find((nd) => nd.id === targetNodeId)?.data.category || ''
-        const targetNodeName = reactFlowNodes.find((nd) => nd.id === targetNodeId)?.data.name || ''
+    if (typeof outputId === 'string' && reactFlowNodes && Array.isArray(reactFlowNodes)) {
+        const targetNode = reactFlowNodes.find((nd: any) => nd.id === outputId)
+        const targetNodeCategory =
+            targetNode && typeof targetNode.data === 'object' && targetNode.data !== null && 'category' in targetNode.data
+                ? targetNode.data.category
+                : ''
+        const targetNodeName =
+            targetNode && typeof targetNode.data === 'object' && targetNode.data !== null && 'name' in targetNode.data
+                ? targetNode.data.name
+                : ''
         if (targetNodeCategory === 'Vector Stores' && targetNodeName !== 'memoryVectorStore') {
             return true
         }
@@ -573,179 +615,214 @@ export const buildFlow = async ({
     while (nodeQueue.length) {
         const { nodeId, depth } = nodeQueue.shift() as INodeQueue
 
-        const reactFlowNode = flowNodes.find((nd) => nd.id === nodeId)
-        const nodeIndex = flowNodes.findIndex((nd) => nd.id === nodeId)
-        if (!reactFlowNode || reactFlowNode === undefined || nodeIndex < 0) continue
+        const reactFlowNode = flowNodes.find((nd: any) => nd.id === nodeId)
+        const nodeIndex = flowNodes.findIndex((nd: any) => nd.id === nodeId)
+        if (typeof reactFlowNode === 'object' && reactFlowNode !== null && !Array.isArray(reactFlowNode) && nodeIndex >= 0) {
+            try {
+                const nodeInstanceFilePath =
+                    typeof reactFlowNode.data.name === 'string' ? (componentNodes[reactFlowNode.data.name]?.filePath as string) : ''
+                const nodeModule = await import(nodeInstanceFilePath)
+                const newNodeInstance = new nodeModule.nodeClass()
 
-        try {
-            const nodeInstanceFilePath = componentNodes[reactFlowNode.data.name].filePath as string
-            const nodeModule = await import(nodeInstanceFilePath)
-            const newNodeInstance = new nodeModule.nodeClass()
+                let flowNodeData = cloneDeep(reactFlowNode.data)
 
-            let flowNodeData = cloneDeep(reactFlowNode.data)
-
-            // Only override the config if its status is true
-            if (overrideConfig && apiOverrideStatus) {
-                flowNodeData = replaceInputsWithConfig(flowNodeData, overrideConfig, nodeOverrides, variableOverrides)
-            }
-
-            if (isUpsert) upsertHistory['flowData'] = saveUpsertFlowData(flowNodeData, upsertHistory)
-
-            const reactFlowNodeData: INodeData = await resolveVariables(
-                flowNodeData,
-                flowNodes,
-                question,
-                chatHistory,
-                flowData,
-                uploadedFilesContent,
-                availableVariables,
-                variableOverrides
-            )
-
-            if (isUpsert && stopNodeId && nodeId === stopNodeId) {
-                logger.debug(`[server]: [${orgId}]: Upserting ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
-                const indexResult = await newNodeInstance.vectorStoreMethods!['upsert']!.call(newNodeInstance, reactFlowNodeData, {
-                    orgId,
-                    workspaceId,
-                    subscriptionId,
-                    chatId,
-                    sessionId,
-                    chatflowid,
-                    chatHistory,
-                    apiMessageId,
-                    logger,
-                    appDataSource,
-                    databaseEntities,
-                    cachePool,
-                    usageCacheManager,
-                    dynamicVariables,
-                    uploads,
-                    baseURL
-                })
-                if (indexResult) upsertHistory['result'] = indexResult
-                logger.debug(`[server]: [${orgId}]: Finished upserting ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
-                break
-            } else if (
-                !isUpsert &&
-                reactFlowNode.data.category === 'Document Loaders' &&
-                checkIfDocLoaderShouldBeIgnored(reactFlowNode, reactFlowNodes, reactFlowEdges)
-            ) {
-                initializedNodes.add(nodeId)
-            } else {
-                logger.debug(`[server]: [${orgId}]: Initializing ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
-                const finalQuestion = uploadedFilesContent ? `${uploadedFilesContent}\n\n${question}` : question
-                let outputResult = await newNodeInstance.init(reactFlowNodeData, finalQuestion, {
-                    orgId,
-                    workspaceId,
-                    subscriptionId,
-                    chatId,
-                    sessionId,
-                    chatflowid,
-                    chatHistory,
-                    logger,
-                    appDataSource,
-                    databaseEntities,
-                    cachePool,
-                    usageCacheManager,
-                    isUpsert,
-                    dynamicVariables,
-                    uploads,
-                    baseURL,
-                    componentNodes,
-                    updateStorageUsage,
-                    checkStorage
-                })
-
-                // Save dynamic variables
-                if (reactFlowNode.data.name === 'setVariable') {
-                    const dynamicVars = outputResult?.dynamicVariables ?? {}
-
-                    for (const variableKey in dynamicVars) {
-                        dynamicVariables[variableKey] = dynamicVars[variableKey]
-                    }
-
-                    outputResult = outputResult?.output
+                // Only override the config if its status is true
+                if (overrideConfig && apiOverrideStatus) {
+                    flowNodeData = replaceInputsWithConfig(
+                        toINodeData(flowNodeData) as any,
+                        overrideConfig,
+                        nodeOverrides,
+                        variableOverrides
+                    ) as any
                 }
 
-                // Determine which nodes to route next when it comes to ifElse
-                if (reactFlowNode.data.name === 'ifElseFunction' && typeof outputResult === 'object') {
-                    let sourceHandle = ''
-                    if (outputResult.type === true) {
-                        // sourceHandle = `${nodeId}-output-returnFalse-string|number|boolean|json|array`
-                        sourceHandle = (
-                            reactFlowNode.data.outputAnchors.flatMap((n) => n.options).find((n) => n?.name === 'returnFalse') as any
-                        )?.id
-                    } else if (outputResult.type === false) {
-                        // sourceHandle = `${nodeId}-output-returnTrue-string|number|boolean|json|array`
-                        sourceHandle = (
-                            reactFlowNode.data.outputAnchors.flatMap((n) => n.options).find((n) => n?.name === 'returnTrue') as any
-                        )?.id
+                if (isUpsert) upsertHistory['flowData'] = saveUpsertFlowData(flowNodeData as any, upsertHistory)
+
+                const reactFlowNodeData: INodeData = await resolveVariables(
+                    toINodeData(flowNodeData) as any,
+                    flowNodes,
+                    question,
+                    chatHistory,
+                    flowData,
+                    uploadedFilesContent,
+                    availableVariables,
+                    variableOverrides
+                )
+
+                if (isUpsert && stopNodeId && nodeId === stopNodeId) {
+                    logger.debug(`[server]: [${orgId}]: Upserting ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
+                    const indexResult = await newNodeInstance.vectorStoreMethods!['upsert']!.call(newNodeInstance, reactFlowNodeData, {
+                        orgId,
+                        workspaceId,
+                        subscriptionId,
+                        chatId,
+                        sessionId,
+                        chatflowid,
+                        chatHistory,
+                        apiMessageId,
+                        logger,
+                        appDataSource,
+                        databaseEntities,
+                        cachePool,
+                        usageCacheManager,
+                        dynamicVariables,
+                        uploads,
+                        baseURL
+                    })
+                    if (indexResult) upsertHistory['result'] = indexResult
+                    logger.debug(`[server]: [${orgId}]: Finished upserting ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
+                    break
+                } else if (
+                    !isUpsert &&
+                    reactFlowNode.data.category === 'Document Loaders' &&
+                    checkIfDocLoaderShouldBeIgnored(reactFlowNode, reactFlowNodes, reactFlowEdges)
+                ) {
+                    initializedNodes.add(nodeId)
+                } else {
+                    logger.debug(`[server]: [${orgId}]: Initializing ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
+                    const finalQuestion = uploadedFilesContent ? `${uploadedFilesContent}\n\n${question}` : question
+                    let outputResult = await newNodeInstance.init(reactFlowNodeData, finalQuestion, {
+                        orgId,
+                        workspaceId,
+                        subscriptionId,
+                        chatId,
+                        sessionId,
+                        chatflowid,
+                        chatHistory,
+                        logger,
+                        appDataSource,
+                        databaseEntities,
+                        cachePool,
+                        usageCacheManager,
+                        isUpsert,
+                        dynamicVariables,
+                        uploads,
+                        baseURL,
+                        componentNodes,
+                        updateStorageUsage,
+                        checkStorage
+                    })
+
+                    // Save dynamic variables
+                    if (reactFlowNode.data.name === 'setVariable') {
+                        const dynamicVars = outputResult?.dynamicVariables ?? {}
+
+                        for (const variableKey in dynamicVars) {
+                            dynamicVariables[variableKey] = dynamicVars[variableKey]
+                        }
+
+                        outputResult = outputResult?.output
                     }
 
-                    const ifElseEdge = reactFlowEdges.find((edg) => edg.source === nodeId && edg.sourceHandle === sourceHandle)
-                    if (ifElseEdge) {
-                        const { graph } = constructGraphs(
-                            reactFlowNodes,
-                            reactFlowEdges.filter((edg) => !(edg.source === nodeId && edg.sourceHandle === sourceHandle)),
-                            { isNonDirected: true }
-                        )
-                        ignoreNodeIds.push(ifElseEdge.target, ...getAllConnectedNodes(graph, ifElseEdge.target))
-                        ignoreNodeIds = [...new Set(ignoreNodeIds)]
+                    // Determine which nodes to route next when it comes to ifElse
+                    if (reactFlowNode.data.name === 'ifElseFunction' && typeof outputResult === 'object') {
+                        let sourceHandle = ''
+                        if (outputResult.type === true) {
+                            // sourceHandle = `${nodeId}-output-returnFalse-string|number|boolean|json|array`
+                            sourceHandle = (
+                                Array.isArray(reactFlowNode.data.outputAnchors)
+                                    ? reactFlowNode.data.outputAnchors
+                                          .flatMap((n: any) => (Array.isArray(n.options) ? n.options : []))
+                                          .find((n: any) => typeof n?.name === 'string' && n.name === 'returnFalse')
+                                    : undefined
+                            )?.id
+                        } else if (outputResult.type === false) {
+                            // sourceHandle = `${nodeId}-output-returnTrue-string|number|boolean|json|array`
+                            sourceHandle = (
+                                Array.isArray(reactFlowNode.data.outputAnchors)
+                                    ? reactFlowNode.data.outputAnchors
+                                          .flatMap((n: any) => (Array.isArray(n.options) ? n.options : []))
+                                          .find((n: any) => typeof n?.name === 'string' && n.name === 'returnTrue')
+                                    : undefined
+                            )?.id
+                        }
+
+                        const ifElseEdge = reactFlowEdges.find((edg: any) => edg.source === nodeId && edg.sourceHandle === sourceHandle)
+                        if (ifElseEdge) {
+                            const { graph } = constructGraphs(
+                                reactFlowNodes,
+                                reactFlowEdges.filter((edg: any) => !(edg.source === nodeId && edg.sourceHandle === sourceHandle)),
+                                { isNonDirected: true }
+                            )
+                            ignoreNodeIds.push(ifElseEdge.target, ...getAllConnectedNodes(graph, ifElseEdge.target))
+                            ignoreNodeIds = [...new Set(ignoreNodeIds)]
+                        }
+
+                        outputResult = outputResult?.output
                     }
 
-                    outputResult = outputResult?.output
+                    flowNodes[nodeIndex].data.instance = outputResult
+
+                    logger.debug(`[server]: [${orgId}]: Finished initializing ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
+                    initializedNodes.add(typeof reactFlowNode.data.id === 'string' ? reactFlowNode.data.id : '')
                 }
-
-                flowNodes[nodeIndex].data.instance = outputResult
-
-                logger.debug(`[server]: [${orgId}]: Finished initializing ${reactFlowNode.data.label} (${reactFlowNode.data.id})`)
-                initializedNodes.add(reactFlowNode.data.id)
+            } catch (e: any) {
+                logger.error(`[server]: [${orgId}]:`, e)
+                throw new Error(e)
             }
-        } catch (e: any) {
-            logger.error(`[server]: [${orgId}]:`, e)
-            throw new Error(e)
         }
 
-        let neighbourNodeIds = graph[nodeId]
+        let neighbourNodeIds = typeof graph === 'object' && graph !== null && !Array.isArray(graph) ? graph[nodeId] : []
         const nextDepth = depth + 1
 
         // Find other nodes that are on the same depth level
-        const sameDepthNodeIds = Object.keys(depthQueue).filter((key) => depthQueue[key] === nextDepth)
+        const sameDepthNodeIds =
+            typeof depthQueue === 'object' && depthQueue !== null && !Array.isArray(depthQueue)
+                ? Object.keys(depthQueue).filter((key: string) => depthQueue[key] === nextDepth)
+                : []
 
         for (const id of sameDepthNodeIds) {
-            if (neighbourNodeIds.includes(id)) continue
-            neighbourNodeIds.push(id)
+            if (Array.isArray(neighbourNodeIds)) {
+                if (neighbourNodeIds.includes(id)) continue
+                neighbourNodeIds.push(id)
+            }
         }
 
-        neighbourNodeIds = neighbourNodeIds.filter((neigh) => !ignoreNodeIds.includes(neigh))
+        neighbourNodeIds = Array.isArray(neighbourNodeIds)
+            ? neighbourNodeIds.filter((neigh: string) => (Array.isArray(ignoreNodeIds) ? !ignoreNodeIds.includes(neigh) : true))
+            : []
 
         for (let i = 0; i < neighbourNodeIds.length; i += 1) {
             const neighNodeId = neighbourNodeIds[i]
-            if (ignoreNodeIds.includes(neighNodeId)) continue
-            if (initializedNodes.has(neighNodeId)) continue
-            if (reversedGraph[neighNodeId].some((dependId) => !initializedNodes.has(dependId))) continue
+            if (Array.isArray(ignoreNodeIds) && ignoreNodeIds.includes(neighNodeId)) continue
+            if (typeof initializedNodes === 'object' && initializedNodes !== null && !Array.isArray(initializedNodes)) {
+                if (initializedNodes.has(neighNodeId)) continue
+            }
+            if (typeof reversedGraph === 'object' && reversedGraph !== null && !Array.isArray(reversedGraph)) {
+                if (reversedGraph[neighNodeId].some((dependId: string) => !initializedNodes.has(dependId))) continue
+            }
             // If nodeId has been seen, cycle detected
-            if (Object.prototype.hasOwnProperty.call(exploredNode, neighNodeId)) {
+            if (typeof exploredNode === 'object' && exploredNode !== null && !Array.isArray(exploredNode)) {
                 const { remainingLoop, lastSeenDepth } = exploredNode[neighNodeId]
 
-                if (lastSeenDepth === nextDepth) continue
+                if (typeof lastSeenDepth === 'number' && lastSeenDepth === nextDepth) continue
 
-                if (remainingLoop === 0) {
+                if (typeof remainingLoop === 'number' && remainingLoop === 0) {
                     break
                 }
-                const remainingLoopMinusOne = remainingLoop - 1
-                exploredNode[neighNodeId] = { remainingLoop: remainingLoopMinusOne, lastSeenDepth: nextDepth }
-                nodeQueue.push({ nodeId: neighNodeId, depth: nextDepth })
+                const remainingLoopMinusOne = typeof remainingLoop === 'number' ? remainingLoop - 1 : remainingLoop
+                if (exploredNode && typeof exploredNode === 'object' && !Array.isArray(exploredNode)) {
+                    exploredNode[neighNodeId] = { remainingLoop: remainingLoopMinusOne, lastSeenDepth: nextDepth }
+                }
+                if (Array.isArray(nodeQueue)) {
+                    nodeQueue.push({ nodeId: neighNodeId, depth: nextDepth })
+                }
             } else {
-                exploredNode[neighNodeId] = { remainingLoop: maxLoop, lastSeenDepth: nextDepth }
-                nodeQueue.push({ nodeId: neighNodeId, depth: nextDepth })
+                if (exploredNode && typeof exploredNode === 'object' && !Array.isArray(exploredNode)) {
+                    ;(exploredNode as IExploredNode)[neighNodeId] = { remainingLoop: maxLoop, lastSeenDepth: nextDepth }
+                }
+                if (Array.isArray(nodeQueue)) {
+                    nodeQueue.push({ nodeId: neighNodeId, depth: nextDepth })
+                }
             }
         }
 
         // Move end node to last
-        if (!neighbourNodeIds.length) {
-            const index = flowNodes.findIndex((nd) => nd.data.id === nodeId)
-            flowNodes.push(flowNodes.splice(index, 1)[0])
+        if (Array.isArray(neighbourNodeIds) && !neighbourNodeIds.length) {
+            const index = Array.isArray(flowNodes) ? flowNodes.findIndex((nd: any) => nd.data.id === nodeId) : -1
+            if (Array.isArray(flowNodes) && index >= 0) {
+                flowNodes.push(flowNodes.splice(index, 1)[0])
+            }
         }
     }
     return isUpsert ? (upsertHistory as any) : flowNodes
@@ -772,32 +849,36 @@ export const clearSessionMemory = async (
     isClearFromViewMessageDialog?: string
 ) => {
     for (const node of reactFlowNodes) {
-        if (node.data.category !== 'Memory' && node.data.type !== 'OpenAIAssistant') continue
+        if (typeof node.data.category === 'string' && node.data.category !== 'Memory' && node.data.type !== 'OpenAIAssistant') continue
 
         // Only clear specific session memory from View Message Dialog UI
-        if (isClearFromViewMessageDialog && memoryType && node.data.label !== memoryType) continue
+        if (typeof isClearFromViewMessageDialog === 'string' && memoryType && node.data.label !== memoryType) continue
 
-        const nodeInstanceFilePath = componentNodes[node.data.name].filePath as string
+        const nodeInstanceFilePath = typeof node.data.name === 'string' ? (componentNodes[node.data.name]?.filePath as string) : ''
         const nodeModule = await import(nodeInstanceFilePath)
         const newNodeInstance = new nodeModule.nodeClass()
         const options: ICommonObject = { orgId, chatId, appDataSource, databaseEntities, logger }
 
         // SessionId always take priority first because it is the sessionId used for 3rd party memory node
-        if (sessionId && node.data.inputs) {
+        if (typeof sessionId === 'string' && node.data.inputs) {
             if (node.data.type === 'OpenAIAssistant') {
                 await newNodeInstance.clearChatMessages(node.data, options, { type: 'threadId', id: sessionId })
             } else {
-                node.data.inputs.sessionId = sessionId
+                if (typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)) {
+                    ;(node.data.inputs as any).sessionId = typeof sessionId === 'string' ? sessionId : ''
+                }
                 const initializedInstance: FlowiseMemory = await newNodeInstance.init(node.data, '', options)
-                await initializedInstance.clearChatMessages(sessionId)
+                await initializedInstance.clearChatMessages(typeof sessionId === 'string' ? sessionId : '')
             }
-        } else if (chatId && node.data.inputs) {
+        } else if (typeof chatId === 'string' && node.data.inputs) {
             if (node.data.type === 'OpenAIAssistant') {
                 await newNodeInstance.clearChatMessages(node.data, options, { type: 'chatId', id: chatId })
             } else {
-                node.data.inputs.sessionId = chatId
+                if (typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)) {
+                    ;(node.data.inputs as any).sessionId = typeof chatId === 'string' ? chatId : ''
+                }
                 const initializedInstance: FlowiseMemory = await newNodeInstance.init(node.data, '', options)
-                await initializedInstance.clearChatMessages(chatId)
+                await initializedInstance.clearChatMessages(typeof chatId === 'string' ? chatId : '')
             }
         }
     }
@@ -810,25 +891,31 @@ export const getGlobalVariable = async (
 ) => {
     // override variables defined in overrideConfig
     // nodeData.inputs.vars is an Object, check each property and override the variable
-    if (overrideConfig?.vars && variableOverrides) {
-        for (const propertyName of Object.getOwnPropertyNames(overrideConfig.vars)) {
+    if (typeof overrideConfig === 'object' && overrideConfig !== null && !Array.isArray(overrideConfig)) {
+        for (const propertyName of Object.getOwnPropertyNames(overrideConfig)) {
             // Check if this variable is enabled for override
-            const override = variableOverrides.find((v) => v.name === propertyName)
-            if (!override?.enabled) {
+            const override = variableOverrides.find((v: any) => v.name === propertyName)
+            if (typeof override === 'object' && override !== null && !Array.isArray(override) && !override.enabled) {
                 continue // Skip this variable if it's not enabled for override
             }
 
-            const foundVar = availableVariables.find((v) => v.name === propertyName)
-            if (foundVar) {
+            const foundVar = availableVariables.find((v: any) => v.name === propertyName)
+            if (typeof foundVar === 'object' && foundVar !== null && !Array.isArray(foundVar)) {
                 // even if the variable was defined as runtime, we override it with static value
                 foundVar.type = 'static'
-                foundVar.value = overrideConfig.vars[propertyName]
+                foundVar.value =
+                    typeof overrideConfig === 'object' && overrideConfig !== null && !Array.isArray(overrideConfig)
+                        ? overrideConfig[propertyName]
+                        : undefined
             } else {
                 // add it the variables, if not found locally in the db
                 availableVariables.push({
                     name: propertyName,
                     type: 'static',
-                    value: overrideConfig.vars[propertyName],
+                    value:
+                        typeof overrideConfig === 'object' && overrideConfig !== null && !Array.isArray(overrideConfig)
+                            ? overrideConfig[propertyName]
+                            : undefined,
                     id: '',
                     updatedDate: new Date(),
                     createdDate: new Date()
@@ -837,13 +924,13 @@ export const getGlobalVariable = async (
         }
     }
 
-    let vars = {}
-    if (availableVariables.length) {
+    let vars: Record<string, any> = {}
+    if (Array.isArray(availableVariables)) {
         for (const item of availableVariables) {
             let value = item.value
 
             // read from .env file
-            if (item.type === 'runtime') {
+            if (typeof item.type === 'string' && item.type === 'runtime') {
                 value = process.env[item.name] ?? ''
             }
 
@@ -918,7 +1005,10 @@ export const getVariableValue = async (
 
             if (variableFullPath.startsWith('$vars.')) {
                 const vars = await getGlobalVariable(flowConfig, availableVariables, variableOverrides)
-                const variableValue = get(vars, variableFullPath.replace('$vars.', ''))
+                const variableValue =
+                    typeof vars === 'object' && vars !== null && !Array.isArray(vars)
+                        ? vars[variableFullPath.replace('$vars.', '')]
+                        : undefined
                 if (variableValue != null) {
                     variableDict[`{{${variableFullPath}}}`] = variableValue
                     returnVal = returnVal.split(`{{${variableFullPath}}}`).join(variableValue)
@@ -926,7 +1016,10 @@ export const getVariableValue = async (
             }
 
             if (variableFullPath.startsWith('$flow.') && flowConfig) {
-                const variableValue = get(flowConfig, variableFullPath.replace('$flow.', ''))
+                const variableValue =
+                    typeof flowConfig === 'object' && flowConfig !== null && !Array.isArray(flowConfig)
+                        ? flowConfig[variableFullPath.replace('$flow.', '')]
+                        : undefined
                 if (variableValue != null) {
                     variableDict[`{{${variableFullPath}}}`] = variableValue
                     returnVal = returnVal.split(`{{${variableFullPath}}}`).join(variableValue)
@@ -938,17 +1031,24 @@ export const getVariableValue = async (
             // 2: <variableNodeId>.data.instance.pathtokey
             const variableFullPathParts = variableFullPath.split('.')
             const variableNodeId = variableFullPathParts[0]
-            const executedNode = reactFlowNodes.find((nd) => nd.id === variableNodeId)
-            if (executedNode) {
-                let variableValue = get(executedNode.data, 'instance')
+            const executedNode = reactFlowNodes.find((nd: any) => nd.id === variableNodeId)
+            if (typeof executedNode === 'object' && executedNode !== null && !Array.isArray(executedNode)) {
+                let variableValue =
+                    typeof executedNode.data === 'object' && executedNode.data !== null && !Array.isArray(executedNode.data)
+                        ? executedNode.data.instance
+                        : undefined
 
                 // Handle path such as `<variableNodeId>.data.instance.key`
-                if (variableFullPathParts.length > 3) {
+                if (Array.isArray(variableFullPathParts) && variableFullPathParts.length > 3) {
                     let variableObj = null
                     switch (typeof variableValue) {
                         case 'string': {
                             const unEscapedVariableValue = handleEscapeCharacters(variableValue, true)
-                            if (unEscapedVariableValue.startsWith('{') && unEscapedVariableValue.endsWith('}')) {
+                            if (
+                                typeof unEscapedVariableValue === 'string' &&
+                                unEscapedVariableValue.startsWith('{') &&
+                                unEscapedVariableValue.endsWith('}')
+                            ) {
                                 try {
                                     variableObj = JSON.parse(unEscapedVariableValue)
                                 } catch (e) {
@@ -964,8 +1064,9 @@ export const getVariableValue = async (
                         default:
                             break
                     }
-                    if (variableObj) {
-                        variableObj = get(variableObj, variableFullPathParts.slice(3))
+                    if (typeof variableObj === 'object' && variableObj !== null && !Array.isArray(variableObj)) {
+                        const keyPath = variableFullPathParts.slice(3).join('.')
+                        variableObj = (variableObj as any)[keyPath]
                         variableValue = handleEscapeCharacters(
                             typeof variableObj === 'object' ? JSON.stringify(variableObj) : variableObj,
                             false
@@ -989,15 +1090,20 @@ export const getVariableValue = async (
         variablePaths.forEach((path) => {
             let variableValue: object | string = variableDict[path]
             // Replace all occurrence
-            if (typeof variableValue === 'object') {
+            if (typeof variableValue === 'object' && variableValue !== null && !Array.isArray(variableValue)) {
                 // Just get the id of variableValue object if it is agentflow node, to avoid circular JSON error
-                if (Object.prototype.hasOwnProperty.call(variableValue, 'predecessorAgents')) {
+                if (
+                    typeof variableValue === 'object' &&
+                    variableValue !== null &&
+                    !Array.isArray(variableValue) &&
+                    Object.prototype.hasOwnProperty.call(variableValue, 'predecessorAgents')
+                ) {
                     const nodeId = variableValue['id']
                     variableValue = { id: nodeId }
                 }
 
                 const stringifiedValue = JSON.stringify(JSON.stringify(variableValue))
-                if (stringifiedValue.startsWith('"') && stringifiedValue.endsWith('"')) {
+                if (typeof stringifiedValue === 'string' && stringifiedValue.startsWith('"') && stringifiedValue.endsWith('"')) {
                     // get rid of the double quotes
                     returnVal = returnVal.split(path).join(stringifiedValue.substring(1, stringifiedValue.length - 1))
                 } else {
@@ -1052,7 +1158,8 @@ export const resolveVariables = async (
                 }
                 paramsObj[key] = resolvedInstances
             } else {
-                const isAcceptVariable = reactFlowNodeData.inputParams.find((param) => param.name === key)?.acceptVariable ?? false
+                const isAcceptVariable =
+                    (reactFlowNodeData as any).inputParams?.find((param: any) => param.name === key)?.acceptVariable ?? false
                 const resolvedInstance = await getVariableValue(
                     paramValue,
                     reactFlowNodes,
@@ -1092,9 +1199,11 @@ export const replaceInputsWithConfig = (
     const types = 'inputs'
 
     const isParameterEnabled = (nodeType: string, paramName: string): boolean => {
-        if (!nodeOverrides[nodeType]) return false
-        const parameter = nodeOverrides[nodeType].find((param: any) => param.name === paramName)
-        return parameter?.enabled ?? false
+        if (typeof nodeOverrides === 'object' && nodeOverrides !== null && !Array.isArray(nodeOverrides)) {
+            const parameter = nodeOverrides[nodeType]?.find((param: any) => param.name === paramName)
+            return typeof parameter === 'object' && parameter !== null && !Array.isArray(parameter) ? parameter.enabled ?? false : false
+        }
+        return false
     }
 
     const getParamValues = (inputsObj: ICommonObject) => {
@@ -1121,8 +1230,8 @@ export const replaceInputsWithConfig = (
 
                     const vars = overrideConfig[config]
                     for (const variable in vars) {
-                        const override = variableOverrides.find((v) => v.name === variable)
-                        if (!override?.enabled) {
+                        const override = variableOverrides.find((v: any) => v.name === variable)
+                        if (typeof override === 'object' && override !== null && !Array.isArray(override) && !override.enabled) {
                             continue // Skip this variable if it's not enabled for override
                         }
                         filteredVars[variable] = vars[variable]
@@ -1157,29 +1266,25 @@ export const replaceInputsWithConfig = (
 
             let paramValue = inputsObj[config]
             const overrideConfigValue = overrideConfig[config]
-            if (overrideConfigValue) {
-                if (typeof overrideConfigValue === 'object') {
-                    switch (typeof paramValue) {
-                        case 'string':
-                            if (paramValue.startsWith('{') && paramValue.endsWith('}')) {
-                                try {
-                                    paramValue = Object.assign({}, JSON.parse(paramValue), overrideConfigValue)
-                                    break
-                                } catch (e) {
-                                    // ignore
-                                }
+            if (typeof overrideConfigValue === 'object' && overrideConfigValue !== null && !Array.isArray(overrideConfigValue)) {
+                switch (typeof paramValue) {
+                    case 'string':
+                        if (paramValue.startsWith('{') && paramValue.endsWith('}')) {
+                            try {
+                                paramValue = Object.assign({}, JSON.parse(paramValue), overrideConfigValue)
+                                break
+                            } catch (e) {
+                                // ignore
                             }
-                            paramValue = overrideConfigValue
-                            break
-                        case 'object':
-                            paramValue = Object.assign({}, paramValue, overrideConfigValue)
-                            break
-                        default:
-                            paramValue = overrideConfigValue
-                            break
-                    }
-                } else {
-                    paramValue = overrideConfigValue
+                        }
+                        paramValue = overrideConfigValue
+                        break
+                    case 'object':
+                        paramValue = Object.assign({}, paramValue, overrideConfigValue)
+                        break
+                    default:
+                        paramValue = overrideConfigValue
+                        break
                 }
             }
             // Check if boolean
@@ -1204,17 +1309,22 @@ export const replaceInputsWithConfig = (
  */
 export const isStartNodeDependOnInput = (startingNodes: IReactFlowNode[], nodes: IReactFlowNode[]): boolean => {
     for (const node of startingNodes) {
-        if (node.data.category === 'Cache') return true
+        if (typeof node.data.category === 'string' && node.data.category.includes('Cache')) return true
         for (const inputName in node.data.inputs) {
-            const inputVariables = getInputVariables(node.data.inputs[inputName])
+            const inputVariables =
+                typeof node.data.inputs[inputName] === 'object' &&
+                node.data.inputs[inputName] !== null &&
+                !Array.isArray(node.data.inputs[inputName])
+                    ? node.data.inputs[inputName]
+                    : []
             if (inputVariables.length > 0) return true
         }
     }
     const whitelistNodeNames = ['vectorStoreToDocument', 'autoGPT', 'chatPromptTemplate', 'promptTemplate'] //If these nodes are found, chatflow cannot be reused
     for (const node of nodes) {
-        if (node.data.name === 'chatPromptTemplate' || node.data.name === 'promptTemplate') {
+        if (typeof node.data.name === 'string' && (node.data.name === 'chatPromptTemplate' || node.data.name === 'promptTemplate')) {
             let promptValues: ICommonObject = {}
-            const promptValuesRaw = node.data.inputs?.promptValues
+            const promptValuesRaw = typeof node.data.inputs?.promptValues === 'object' ? node.data.inputs?.promptValues : undefined
             if (promptValuesRaw) {
                 try {
                     promptValues = typeof promptValuesRaw === 'object' ? promptValuesRaw : JSON.parse(promptValuesRaw)
@@ -1223,7 +1333,7 @@ export const isStartNodeDependOnInput = (startingNodes: IReactFlowNode[], nodes:
                 }
             }
             if (getAllValuesFromJson(promptValues).includes(`{{${QUESTION_VAR_PREFIX}}}`)) return true
-        } else if (whitelistNodeNames.includes(node.data.name)) return true
+        } else if (typeof node.data.name === 'string' && whitelistNodeNames.includes(node.data.name)) return true
     }
     return false
 }
@@ -1241,14 +1351,22 @@ export const isSameOverrideConfig = (
     newOverrideConfig?: ICommonObject
 ): boolean => {
     if (isInternal) {
-        if (existingOverrideConfig && Object.keys(existingOverrideConfig).length) return false
+        if (
+            typeof existingOverrideConfig === 'object' &&
+            existingOverrideConfig !== null &&
+            !Array.isArray(existingOverrideConfig) &&
+            Object.keys(existingOverrideConfig).length
+        )
+            return false
         return true
     }
     // If existing and new overrideconfig are the same
     if (
-        existingOverrideConfig &&
+        typeof existingOverrideConfig === 'object' &&
+        existingOverrideConfig !== null &&
+        !Array.isArray(existingOverrideConfig) &&
         Object.keys(existingOverrideConfig).length &&
-        newOverrideConfig &&
+        typeof newOverrideConfig === 'object' &&
         Object.keys(newOverrideConfig).length &&
         isEqual(existingOverrideConfig, newOverrideConfig)
     ) {
@@ -1265,7 +1383,7 @@ export const isSameOverrideConfig = (
  * @returns {boolean}
  */
 export const isSameChatId = (existingChatId?: string, newChatId?: string): boolean => {
-    if (isEqual(existingChatId, newChatId)) {
+    if (typeof existingChatId === 'string' && existingChatId === newChatId) {
         return true
     }
     if (!existingChatId && !newChatId) return true
@@ -1282,9 +1400,9 @@ export const findAvailableConfigs = (reactFlowNodes: IReactFlowNode[], component
     const configs: IOverrideConfig[] = []
 
     for (const flowNode of reactFlowNodes) {
-        for (const inputParam of flowNode.data.inputParams) {
+        for (const inputParam of flowNode.data.inputParams ?? []) {
             let obj: IOverrideConfig | undefined
-            if (inputParam.type === 'file') {
+            if (typeof inputParam.type === 'string' && inputParam.type === 'file') {
                 obj = {
                     node: flowNode.data.label,
                     nodeId: flowNode.data.id,
@@ -1292,24 +1410,27 @@ export const findAvailableConfigs = (reactFlowNodes: IReactFlowNode[], component
                     name: 'files',
                     type: inputParam.fileType ?? inputParam.type
                 }
-            } else if (inputParam.type === 'options') {
+            } else if (typeof inputParam.type === 'string' && inputParam.type === 'options') {
                 obj = {
                     node: flowNode.data.label,
                     nodeId: flowNode.data.id,
                     label: inputParam.label,
                     name: inputParam.name,
                     type: inputParam.options
-                        ? inputParam.options
-                              ?.map((option) => {
-                                  return option.name
-                              })
-                              .join(', ')
+                        ? Array.isArray(inputParam.options)
+                            ? inputParam.options.map((option: any) => option.name).join(', ')
+                            : 'string'
                         : 'string'
                 }
-            } else if (inputParam.type === 'credential') {
+            } else if (typeof inputParam.type === 'string' && inputParam.type === 'credential') {
                 // get component credential inputs
                 for (const name of inputParam.credentialNames ?? []) {
-                    if (Object.prototype.hasOwnProperty.call(componentCredentials, name)) {
+                    if (
+                        typeof componentCredentials === 'object' &&
+                        componentCredentials !== null &&
+                        !Array.isArray(componentCredentials) &&
+                        Object.prototype.hasOwnProperty.call(componentCredentials, name)
+                    ) {
                         const inputs = componentCredentials[name]?.inputs ?? []
                         for (const input of inputs) {
                             obj = {
@@ -1324,7 +1445,7 @@ export const findAvailableConfigs = (reactFlowNodes: IReactFlowNode[], component
                     }
                 }
                 continue
-            } else if (inputParam.type === 'array') {
+            } else if (typeof inputParam.type === 'object' && inputParam.type !== null && !Array.isArray(inputParam)) {
                 // get array item schema
                 const arrayItem = inputParam.array
                 if (Array.isArray(arrayItem)) {
@@ -1332,11 +1453,13 @@ export const findAvailableConfigs = (reactFlowNodes: IReactFlowNode[], component
                     // Each array item is a field definition
                     for (const item of arrayItem) {
                         let itemType = item.type
-                        if (itemType === 'options') {
-                            const availableOptions = item.options?.map((option) => option.name).join(', ')
+                        if (typeof itemType === 'string' && itemType === 'options') {
+                            const availableOptions = Array.isArray(item.options)
+                                ? item.options.map((option: any) => option.name).join(', ')
+                                : 'string'
                             itemType = `(${availableOptions})`
-                        } else if (itemType === 'file') {
-                            itemType = item.fileType ?? item.type
+                        } else if (typeof itemType === 'string' && itemType === 'file') {
+                            itemType = typeof item.fileType === 'string' ? item.fileType : item.type
                         }
                         arraySchema.push({
                             name: item.name,
@@ -1407,35 +1530,35 @@ export const isFlowValidForStream = (reactFlowNodes: IReactFlowNode[], endingNod
     let isChatOrLLMsExist = false
     for (const flowNode of reactFlowNodes) {
         const data = flowNode.data
-        if (data.category === 'Chat Models' || data.category === 'LLMs') {
-            if (data.inputs?.streaming === false || data.inputs?.streaming === 'false') {
+        if ((typeof data.category === 'string' && data.category.includes('Chat Models')) || data.category.includes('LLMs')) {
+            if (typeof data.inputs?.streaming === 'boolean' && data.inputs?.streaming === false) {
                 return false
             }
-            if (data.inputs?.streaming === true || data.inputs?.streaming === 'true') {
+            if (typeof data.inputs?.streaming === 'boolean' && data.inputs?.streaming === true) {
                 isChatOrLLMsExist = true // passed, proceed to next check
             }
             /** Deprecated, add streaming input param to the component instead **/
             if (!Object.prototype.hasOwnProperty.call(data.inputs, 'streaming') && !data.inputs?.streaming) {
                 isChatOrLLMsExist = true
-                const validLLMs = streamAvailableLLMs[data.category]
+                const validLLMs = (streamAvailableLLMs as any)[data.category]
                 if (!validLLMs.includes(data.name)) return false
             }
         }
     }
 
     let isValidChainOrAgent = false
-    if (endingNodeData.category === 'Chains') {
+    if (typeof endingNodeData.category === 'string' && endingNodeData.category.includes('Chains')) {
         // Chains that are not available to stream
         const blacklistChains = ['openApiChain', 'vectaraQAChain']
         isValidChainOrAgent = !blacklistChains.includes(endingNodeData.name)
-    } else if (endingNodeData.category === 'Agents') {
+    } else if (typeof endingNodeData.category === 'string' && endingNodeData.category.includes('Agents')) {
         // Agent that are available to stream
         const whitelistAgents = ['csvAgent', 'airtableAgent', 'toolAgent', 'conversationalRetrievalToolAgent', 'openAIToolAgentLlamaIndex']
         isValidChainOrAgent = whitelistAgents.includes(endingNodeData.name)
 
         // If agent is openAIAssistant, streaming is enabled
         if (endingNodeData.name === 'openAIAssistant') return true
-    } else if (endingNodeData.category === 'Engine') {
+    } else if (typeof endingNodeData.category === 'string' && endingNodeData.category.includes('Engine')) {
         // Engines that are available to stream
         const whitelistEngine = ['contextChatEngine', 'simpleChatEngine', 'queryEngine', 'subQuestionQueryEngine']
         isValidChainOrAgent = whitelistEngine.includes(endingNodeData.name)
@@ -1445,7 +1568,7 @@ export const isFlowValidForStream = (reactFlowNodes: IReactFlowNode[], endingNod
     let isOutputParserExist = false
     for (const flowNode of reactFlowNodes) {
         const data = flowNode.data
-        if (data.category.includes('Output Parser')) {
+        if (typeof data.category === 'string' && data.category.includes('Output Parser')) {
             isOutputParserExist = true
         }
     }
@@ -1467,7 +1590,7 @@ export const getEncryptionKey = async (): Promise<string> => {
             const command = new GetSecretValueCommand({ SecretId: secretId })
             const response = await secretsManagerClient.send(command)
 
-            if (response.SecretString) {
+            if (typeof response.SecretString === 'string') {
                 return response.SecretString
             }
         } catch (error: any) {
@@ -1526,7 +1649,7 @@ export const decryptCredentialData = async (
                 const command = new GetSecretValueCommand({ SecretId: encryptedData })
                 const response = await secretsManagerClient.send(command)
 
-                if (response.SecretString) {
+                if (typeof response.SecretString === 'string') {
                     const secretObj = JSON.parse(response.SecretString)
                     decryptedDataStr = JSON.stringify(secretObj)
                 } else {
@@ -1550,7 +1673,7 @@ export const decryptCredentialData = async (
 
     if (!decryptedDataStr) return {}
     try {
-        if (componentCredentialName && componentCredentials) {
+        if (typeof componentCredentialName === 'string' && componentCredentials) {
             const plainDataObj = JSON.parse(decryptedDataStr)
             return redactCredentialWithPasswordType(componentCredentialName, plainDataObj, componentCredentials)
         }
@@ -1588,7 +1711,7 @@ export const transformToCredentialEntity = async (body: ICredentialReqBody): Pro
     const newCredential = new Credential()
     Object.assign(newCredential, credentialBody)
 
-    if (body.workspaceId) {
+    if (typeof body.workspaceId === 'string') {
         newCredential.workspaceId = body.workspaceId
     }
 
@@ -1609,8 +1732,11 @@ export const redactCredentialWithPasswordType = (
 ): ICredentialDataDecrypted => {
     const plainDataObj = cloneDeep(decryptedCredentialObj)
     for (const cred in plainDataObj) {
-        const inputParam = componentCredentials[componentCredentialName].inputs?.find((inp) => inp.type === 'password' && inp.name === cred)
-        if (inputParam) {
+        const inputParam =
+            typeof componentCredentials === 'object' && componentCredentials !== null && !Array.isArray(componentCredentials)
+                ? componentCredentials[componentCredentialName].inputs?.find((inp: any) => inp.type === 'password' && inp.name === cred)
+                : undefined
+        if (typeof inputParam === 'object' && inputParam !== null && !Array.isArray(inputParam)) {
             plainDataObj[cred] = REDACTED_CREDENTIAL_VALUE
         }
     }
@@ -1641,17 +1767,22 @@ export const getMemorySessionId = (
 ): string => {
     if (!isInternal) {
         // Provided in API body - incomingInput.overrideConfig: { sessionId: 'abc' }
-        if (incomingInput.overrideConfig?.sessionId) {
-            return incomingInput.overrideConfig?.sessionId
+        if (
+            typeof incomingInput.overrideConfig === 'object' &&
+            incomingInput.overrideConfig !== null &&
+            !Array.isArray(incomingInput.overrideConfig) &&
+            incomingInput.overrideConfig.sessionId
+        ) {
+            return incomingInput.overrideConfig.sessionId
         }
         // Provided in API body - incomingInput.chatId
-        if (incomingInput.chatId) {
+        if (typeof incomingInput.chatId === 'string') {
             return incomingInput.chatId
         }
     }
 
     // Hard-coded sessionId in UI
-    if (memoryNode && memoryNode.data.inputs?.sessionId) {
+    if (typeof memoryNode === 'object' && memoryNode !== null && !Array.isArray(memoryNode) && memoryNode.data.inputs?.sessionId) {
         return memoryNode.data.inputs.sessionId
     }
 
@@ -1680,12 +1811,12 @@ export const getSessionChatHistory = async (
     logger: any,
     prependMessages?: IMessage[]
 ): Promise<IMessage[]> => {
-    const nodeInstanceFilePath = componentNodes[memoryNode.data.name].filePath as string
+    const nodeInstanceFilePath = typeof memoryNode.data.name === 'string' ? (componentNodes[memoryNode.data.name]?.filePath as string) : ''
     const nodeModule = await import(nodeInstanceFilePath)
     const newNodeInstance = new nodeModule.nodeClass()
 
     // Replace memory's sessionId/chatId
-    if (memoryNode.data.inputs) {
+    if (typeof memoryNode.data.inputs === 'object' && memoryNode.data.inputs !== null && !Array.isArray(memoryNode.data.inputs)) {
         memoryNode.data.inputs.sessionId = sessionId
     }
 
@@ -1707,11 +1838,11 @@ export const getSessionChatHistory = async (
  * @returns {IReactFlowNode | undefined}
  */
 export const findMemoryNode = (nodes: IReactFlowNode[], edges: IReactFlowEdge[]): IReactFlowNode | undefined => {
-    const memoryNodes = nodes.filter((node) => node.data.category === 'Memory')
+    const memoryNodes = nodes.filter((node) => typeof node.data.category === 'string' && node.data.category === 'Memory')
     const memoryNodeIds = memoryNodes.map((mem) => mem.data.id)
 
     for (const edge of edges) {
-        if (memoryNodeIds.includes(edge.source)) {
+        if (typeof edge.source === 'string' && memoryNodeIds.includes(edge.source)) {
             const memoryNode = nodes.find((node) => node.data.id === edge.source)
             return memoryNode
         }
@@ -1807,11 +1938,17 @@ export const getAPIOverrideConfig = (chatflow: IChatFlow) => {
     try {
         const apiConfig = chatflow.apiConfig ? JSON.parse(chatflow.apiConfig) : {}
         const nodeOverrides: INodeOverrides =
-            apiConfig.overrideConfig && apiConfig.overrideConfig.nodes ? apiConfig.overrideConfig.nodes : {}
+            typeof apiConfig.overrideConfig === 'object' && apiConfig.overrideConfig !== null && !Array.isArray(apiConfig.overrideConfig)
+                ? apiConfig.overrideConfig.nodes
+                : {}
         const variableOverrides: IVariableOverride[] =
-            apiConfig.overrideConfig && apiConfig.overrideConfig.variables ? apiConfig.overrideConfig.variables : []
+            typeof apiConfig.overrideConfig === 'object' && apiConfig.overrideConfig !== null && !Array.isArray(apiConfig.overrideConfig)
+                ? apiConfig.overrideConfig.variables
+                : []
         const apiOverrideStatus: boolean =
-            apiConfig.overrideConfig && apiConfig.overrideConfig.status ? apiConfig.overrideConfig.status : false
+            typeof apiConfig.overrideConfig === 'object' && apiConfig.overrideConfig !== null && !Array.isArray(apiConfig.overrideConfig)
+                ? apiConfig.overrideConfig.status
+                : false
 
         return { nodeOverrides, variableOverrides, apiOverrideStatus }
     } catch (error) {
@@ -1890,18 +2027,24 @@ export const calculateNodesDepth = (graph: INodeDirectedGraph, startingNodeIds: 
     while (queue.length > 0) {
         const [currentNode, currentDepth] = queue.shift()!
 
-        if (visited.has(currentNode)) continue
+        if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
+            if (visited.has(currentNode)) continue
+        }
         visited.add(currentNode)
 
         // Process all neighbors
-        for (const neighbor of graph[currentNode]) {
-            if (!visited.has(neighbor)) {
-                // Update depth if unvisited or found shorter path
-                if (depths[neighbor] === -1 || depths[neighbor] > currentDepth + 1) {
-                    depths[neighbor] = currentDepth + 1
+        if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
+            graph[currentNode].flatMap((neighbor) => {
+                if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
+                    // Update depth if unvisited or found shorter path
+                    if (typeof depths === 'object' && depths !== null && !Array.isArray(depths)) {
+                        if (depths[neighbor] === -1 || depths[neighbor] > currentDepth + 1) {
+                            depths[neighbor] = currentDepth + 1
+                        }
+                    }
+                    queue.push([neighbor, currentDepth + 1])
                 }
-                queue.push([neighbor, currentDepth + 1])
-            }
+            })
         }
     }
 
@@ -1920,13 +2063,37 @@ export const getAllNodesInPath = (startNode: string, graph: INodeDirectedGraph):
 
     while (queue.length > 0) {
         const current = queue.shift()!
-        if (nodes.has(current)) continue
+        if (typeof nodes === 'object' && nodes !== null && !Array.isArray(nodes)) {
+            if (nodes.has(current)) continue
+        }
 
         nodes.add(current)
-        if (graph[current]) {
+        if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
             queue.push(...graph[current])
         }
     }
 
     return Array.from(nodes)
+}
+
+export function toINodeData(obj: any): INodeData {
+    return {
+        id: typeof obj.id === 'string' ? obj.id : '',
+        name: typeof obj.name === 'string' ? obj.name : '',
+        category: typeof obj.category === 'string' ? obj.category : '',
+        label: typeof obj.label === 'string' ? obj.label : '',
+        type: typeof obj.type === 'string' ? obj.type : '',
+        icon: typeof obj.icon === 'string' ? obj.icon : '',
+        version: typeof obj.version === 'number' ? obj.version : 1,
+        baseClasses: Array.isArray(obj.baseClasses) ? obj.baseClasses : [],
+        inputs: obj.inputs ?? {},
+        outputs: obj.outputs ?? {},
+        credential: obj.credential ?? '',
+        instance: obj.instance ?? null,
+        loadMethod: obj.loadMethod ?? '',
+        inputAnchors: Array.isArray(obj.inputAnchors) ? obj.inputAnchors : [],
+        inputParams: Array.isArray(obj.inputParams) ? obj.inputParams : [],
+        outputAnchors: Array.isArray(obj.outputAnchors) ? obj.outputAnchors : [],
+        ...obj // spread last to allow extra properties
+    }
 }

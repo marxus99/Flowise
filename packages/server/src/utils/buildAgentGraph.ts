@@ -29,6 +29,7 @@ import { Variable } from '../database/entities/Variable'
 import { getWorkspaceSearchOptions } from '../enterprise/utils/ControllerServiceUtils'
 import { DataSource } from 'typeorm'
 import { CachePool } from '../CachePool'
+import { toINodeData } from './index'
 
 /**
  * Build Agent Graph
@@ -111,17 +112,34 @@ export const buildAgentGraph = async ({
         let totalUsedTools: IUsedTool[] = []
         let totalArtifacts: ICommonObject[] = []
 
-        const workerNodes = initializedNodes.filter((node) => node.data.name === 'worker')
-        const supervisorNodes = initializedNodes.filter((node) => node.data.name === 'supervisor')
-        const seqAgentNodes = initializedNodes.filter((node) => node.data.category === 'Sequential Agents')
+        const workerNodes = initializedNodes.filter((node: any) => node.data.name === 'worker')
+        const supervisorNodes = initializedNodes.filter((node: any) => node.data.name === 'supervisor')
+        const seqAgentNodes = initializedNodes.filter((node: any) => node.data.category === 'Sequential Agents')
 
         const mapNameToLabel: Record<string, { label: string; nodeName: string }> = {}
 
         for (const node of [...workerNodes, ...supervisorNodes, ...seqAgentNodes]) {
-            if (!Object.prototype.hasOwnProperty.call(mapNameToLabel, node.data.instance.name)) {
-                mapNameToLabel[node.data.instance.name] = {
-                    label: node.data.instance.label,
-                    nodeName: node.data.name
+            const instanceName =
+                node.data.instance &&
+                typeof node.data.instance === 'object' &&
+                node.data.instance !== null &&
+                !Array.isArray(node.data.instance) &&
+                typeof node.data.instance.name === 'string'
+                    ? node.data.instance.name
+                    : ''
+            const instanceLabel =
+                node.data.instance &&
+                typeof node.data.instance === 'object' &&
+                node.data.instance !== null &&
+                !Array.isArray(node.data.instance) &&
+                typeof node.data.instance.label === 'string'
+                    ? node.data.instance.label
+                    : ''
+            const nodeName = typeof node.data.name === 'string' ? node.data.name : ''
+            if (!Object.prototype.hasOwnProperty.call(mapNameToLabel, instanceName)) {
+                mapNameToLabel[instanceName] = {
+                    label: instanceLabel,
+                    nodeName: nodeName
                 }
             }
         }
@@ -142,7 +160,7 @@ export const buildAgentGraph = async ({
                     chatHistory,
                     overrideConfig: incomingInput?.overrideConfig,
                     threadId: sessionId || chatId,
-                    summarization: seqAgentNodes.some((node) => node.data.inputs?.summarization),
+                    summarization: seqAgentNodes.some((node: any) => node.data.inputs?.summarization),
                     uploadedFilesContent
                 })
             } else {
@@ -213,20 +231,28 @@ export const buildAgentGraph = async ({
                              */
                             if (isSequential) {
                                 const inputEdges = edges.filter(
-                                    (edg) => edg.target === nodeId && edg.targetHandle.includes(`${nodeId}-input-sequentialNode`)
+                                    (edg: any) => edg.target === nodeId && edg.targetHandle.includes(`${nodeId}-input-sequentialNode`)
                                 )
 
-                                inputEdges.forEach((edge) => {
-                                    const parentNode = initializedNodes.find((nd) => nd.id === edge.source)
+                                inputEdges.forEach((edge: any) => {
+                                    const parentNode = initializedNodes.find((nd: any) => nd.id === edge.source)
                                     if (parentNode) {
-                                        if (parentNode.data.name.includes('seqCondition')) {
+                                        const parentName = parentNode.data.name
+                                        if (typeof parentName === 'string' && parentName.includes('seqCondition')) {
                                             const newMessages = messages.slice(0, -1)
                                             newMessages.push(mapNameToLabel[agentName].label)
                                             const reasoning = {
-                                                agentName: parentNode.data.instance?.label || parentNode.data.type,
+                                                agentName:
+                                                    parentNode.data.instance &&
+                                                    typeof parentNode.data.instance === 'object' &&
+                                                    parentNode.data.instance !== null &&
+                                                    !Array.isArray(parentNode.data.instance) &&
+                                                    typeof parentNode.data.instance.label === 'string'
+                                                        ? parentNode.data.instance.label
+                                                        : '',
                                                 messages: newMessages,
-                                                nodeName: parentNode.data.name,
-                                                nodeId: parentNode.data.id
+                                                nodeName: typeof parentNode.data.name === 'string' ? parentNode.data.name : undefined,
+                                                nodeId: typeof parentNode.data.id === 'string' ? parentNode.data.id : undefined
                                             }
                                             agentReasoning.push(reasoning)
                                         }
@@ -308,18 +334,18 @@ export const buildAgentGraph = async ({
                     // If last message is an AI Message with tool calls, that means the last node was interrupted
                     if (lastMessageRaw.tool_calls && lastMessageRaw.tool_calls.length > 0) {
                         // The last node that got interrupted
-                        const node = initializedNodes.find((node) => node.id === lastMessageRaw.additional_kwargs.nodeId)
+                        const node = initializedNodes.find((node: any) => node.id === lastMessageRaw.additional_kwargs.nodeId)
 
                         // Find the next tool node that is connected to the interrupted node, to get the approve/reject button text
                         const tooNodeId = edges.find(
-                            (edge) =>
+                            (edge: any) =>
                                 edge.target.includes('seqToolNode') &&
                                 edge.source === (lastMessageRaw.additional_kwargs && lastMessageRaw.additional_kwargs.nodeId)
                         )?.target
-                        const connectedToolNode = initializedNodes.find((node) => node.id === tooNodeId)
+                        const connectedToolNode = initializedNodes.find((node: any) => node.id === tooNodeId)
 
                         // Map raw tool calls to used tools, to be shown on interrupted message
-                        const mappedToolCalls = lastMessageRaw.tool_calls.map((toolCall) => {
+                        const mappedToolCalls = lastMessageRaw.tool_calls.map((toolCall: any) => {
                             return {
                                 tool: toolCall.name,
                                 toolInput: toolCall.args,
@@ -331,36 +357,75 @@ export const buildAgentGraph = async ({
                         let approveButtonText = 'Yes'
                         let rejectButtonText = 'No'
 
-                        if (connectedToolNode || node) {
-                            if (connectedToolNode) {
-                                const result = await connectedToolNode.data.instance.node.seekPermissionMessage(mappedToolCalls)
-                                finalResult = result || 'Do you want to proceed?'
-                                approveButtonText = connectedToolNode.data.inputs?.approveButtonText || 'Yes'
-                                rejectButtonText = connectedToolNode.data.inputs?.rejectButtonText || 'No'
-                            } else if (node) {
-                                const result = await node.data.instance.agentInterruptToolNode.seekPermissionMessage(mappedToolCalls)
-                                finalResult = result || 'Do you want to proceed?'
-                                approveButtonText = node.data.inputs?.approveButtonText || 'Yes'
-                                rejectButtonText = node.data.inputs?.rejectButtonText || 'No'
-                            }
-                            finalAction = {
-                                id: uuidv4(),
-                                mapping: {
-                                    approve: approveButtonText,
-                                    reject: rejectButtonText,
-                                    toolCalls: lastMessageRaw.tool_calls
-                                },
-                                elements: [
-                                    { type: 'approve-button', label: approveButtonText },
-                                    { type: 'reject-button', label: rejectButtonText }
-                                ]
-                            }
-                            if (shouldStreamResponse && sseStreamer) {
-                                sseStreamer.streamTokenEvent(chatId, finalResult)
-                                sseStreamer.streamActionEvent(chatId, finalAction)
-                            }
+                        if (connectedToolNode) {
+                            const instance = connectedToolNode.data.instance
+                            const nodeObj =
+                                instance &&
+                                typeof instance === 'object' &&
+                                instance !== null &&
+                                !Array.isArray(instance) &&
+                                typeof instance.node === 'object'
+                                    ? instance.node
+                                    : undefined
+                            const seekPermissionMessage =
+                                nodeObj && typeof nodeObj.seekPermissionMessage === 'function' ? nodeObj.seekPermissionMessage : undefined
+                            const result = seekPermissionMessage ? await seekPermissionMessage(mappedToolCalls) : undefined
+                            finalResult = result || 'Do you want to proceed?'
+                            const inputs =
+                                typeof connectedToolNode.data.inputs === 'object' &&
+                                connectedToolNode.data.inputs !== null &&
+                                !Array.isArray(connectedToolNode.data.inputs)
+                                    ? connectedToolNode.data.inputs
+                                    : {}
+                            approveButtonText =
+                                'approveButtonText' in inputs && typeof inputs.approveButtonText === 'string'
+                                    ? inputs.approveButtonText
+                                    : 'Yes'
+                            rejectButtonText =
+                                'rejectButtonText' in inputs && typeof inputs.rejectButtonText === 'string' ? inputs.rejectButtonText : 'No'
+                        } else if (node) {
+                            const instance = node.data.instance
+                            const agentInterruptToolNode =
+                                instance &&
+                                typeof instance === 'object' &&
+                                instance !== null &&
+                                !Array.isArray(instance) &&
+                                typeof instance.agentInterruptToolNode === 'object'
+                                    ? instance.agentInterruptToolNode
+                                    : undefined
+                            const seekPermissionMessage =
+                                agentInterruptToolNode && typeof agentInterruptToolNode.seekPermissionMessage === 'function'
+                                    ? agentInterruptToolNode.seekPermissionMessage
+                                    : undefined
+                            const result = seekPermissionMessage ? await seekPermissionMessage(mappedToolCalls) : undefined
+                            finalResult = result || 'Do you want to proceed?'
+                            const inputs =
+                                typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)
+                                    ? node.data.inputs
+                                    : {}
+                            approveButtonText =
+                                'approveButtonText' in inputs && typeof inputs.approveButtonText === 'string'
+                                    ? inputs.approveButtonText
+                                    : 'Yes'
+                            rejectButtonText =
+                                'rejectButtonText' in inputs && typeof inputs.rejectButtonText === 'string' ? inputs.rejectButtonText : 'No'
                         }
-                        totalUsedTools.push(...mappedToolCalls)
+                        finalAction = {
+                            id: uuidv4(),
+                            mapping: {
+                                approve: approveButtonText,
+                                reject: rejectButtonText,
+                                toolCalls: lastMessageRaw.tool_calls
+                            },
+                            elements: [
+                                { type: 'approve-button', label: approveButtonText },
+                                { type: 'reject-button', label: rejectButtonText }
+                            ]
+                        }
+                        if (shouldStreamResponse && sseStreamer) {
+                            sseStreamer.streamTokenEvent(chatId, finalResult)
+                            sseStreamer.streamActionEvent(chatId, finalAction)
+                        }
                     } else if (lastAgentReasoningMessage) {
                         finalResult = lastAgentReasoningMessage
                         if (shouldStreamResponse && sseStreamer) {
@@ -461,7 +526,7 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
         channels
     })
 
-    const workerNodes = reactFlowNodes.filter((node) => workerNodeIds.includes(node.data.id))
+    const workerNodes = reactFlowNodes.filter((node: any) => workerNodeIds.includes(node.data.id))
 
     /*** Get API Config ***/
     const availableVariables = await appDataSource.getRepository(Variable).findBy(getWorkspaceSearchOptions(agentflow.workspaceId))
@@ -471,15 +536,36 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
 
     // Init worker nodes
     for (const workerNode of workerNodes) {
-        const nodeInstanceFilePath = componentNodes[workerNode.data.name].filePath as string
+        const instanceName =
+            workerNode.data.instance &&
+            typeof workerNode.data.instance === 'object' &&
+            workerNode.data.instance !== null &&
+            !Array.isArray(workerNode.data.instance) &&
+            typeof workerNode.data.instance.name === 'string'
+                ? workerNode.data.instance.name
+                : ''
+        const instanceLabel =
+            workerNode.data.instance &&
+            typeof workerNode.data.instance === 'object' &&
+            workerNode.data.instance !== null &&
+            !Array.isArray(workerNode.data.instance) &&
+            typeof workerNode.data.instance.label === 'string'
+                ? workerNode.data.instance.label
+                : ''
+        const nodeInstanceFilePath = instanceName && componentNodes[instanceName] ? (componentNodes[instanceName].filePath as string) : ''
         const nodeModule = await import(nodeInstanceFilePath)
         const newNodeInstance = new nodeModule.nodeClass()
 
         let flowNodeData = cloneDeep(workerNode.data)
         if (overrideConfig && apiOverrideStatus)
-            flowNodeData = replaceInputsWithConfig(flowNodeData, overrideConfig, nodeOverrides, variableOverrides)
-        flowNodeData = await resolveVariables(
-            flowNodeData,
+            flowNodeData = replaceInputsWithConfig(
+                toINodeData(flowNodeData) as any,
+                overrideConfig,
+                nodeOverrides,
+                variableOverrides
+            ) as any
+        flowNodeData = (await resolveVariables(
+            toINodeData(flowNodeData) as any,
             reactFlowNodes,
             question,
             chatHistory,
@@ -487,7 +573,7 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
             uploadedFilesContent,
             availableVariables,
             variableOverrides
-        )
+        )) as any
 
         try {
             const workerResult: IMultiAgentNode = await newNodeInstance.init(flowNodeData, question, options)
@@ -508,19 +594,40 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
     // Init supervisor nodes
     for (const supervisor in supervisorWorkers) {
         const supervisorInputLabel = mapNameToLabel[supervisor].label
-        const supervisorNode = reactFlowNodes.find((node) => supervisorInputLabel === node.data.inputs?.supervisorName)
+        const supervisorNode = reactFlowNodes.find((node: any) => supervisorInputLabel === node.data.inputs?.supervisorName)
         if (!supervisorNode) continue
 
-        const nodeInstanceFilePath = componentNodes[supervisorNode.data.name].filePath as string
+        const instanceName =
+            supervisorNode.data.instance &&
+            typeof supervisorNode.data.instance === 'object' &&
+            supervisorNode.data.instance !== null &&
+            !Array.isArray(supervisorNode.data.instance) &&
+            typeof supervisorNode.data.instance.name === 'string'
+                ? supervisorNode.data.instance.name
+                : ''
+        const instanceLabel =
+            supervisorNode.data.instance &&
+            typeof supervisorNode.data.instance === 'object' &&
+            supervisorNode.data.instance !== null &&
+            !Array.isArray(supervisorNode.data.instance) &&
+            typeof supervisorNode.data.instance.label === 'string'
+                ? supervisorNode.data.instance.label
+                : ''
+        const nodeInstanceFilePath = instanceName && componentNodes[instanceName] ? (componentNodes[instanceName].filePath as string) : ''
         const nodeModule = await import(nodeInstanceFilePath)
         const newNodeInstance = new nodeModule.nodeClass()
 
         let flowNodeData = cloneDeep(supervisorNode.data)
 
         if (overrideConfig && apiOverrideStatus)
-            flowNodeData = replaceInputsWithConfig(flowNodeData, overrideConfig, nodeOverrides, variableOverrides)
-        flowNodeData = await resolveVariables(
-            flowNodeData,
+            flowNodeData = replaceInputsWithConfig(
+                toINodeData(flowNodeData) as any,
+                overrideConfig,
+                nodeOverrides,
+                variableOverrides
+            ) as any
+        flowNodeData = (await resolveVariables(
+            toINodeData(flowNodeData) as any,
             reactFlowNodes,
             question,
             chatHistory,
@@ -528,9 +635,11 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
             uploadedFilesContent,
             availableVariables,
             variableOverrides
-        )
+        )) as any
 
-        if (flowNodeData.inputs) flowNodeData.inputs.workerNodes = supervisorWorkers[supervisor]
+        if (typeof flowNodeData.inputs === 'object' && flowNodeData.inputs !== null && !Array.isArray(flowNodeData.inputs)) {
+            ;(flowNodeData.inputs as any).workerNodes = supervisorWorkers[supervisor]
+        }
 
         try {
             const supervisorResult: IMultiAgentNode = await newNodeInstance.init(flowNodeData, question, options)
@@ -574,7 +683,7 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
             const graph = workflowGraph.compile({ checkpointer: memory })
 
             const loggerHandler = new ConsoleCallbackHandler(logger, options?.orgId)
-            const callbacks = await additionalCallbacks(flowNodeData, options)
+            const callbacks = await additionalCallbacks(flowNodeData as any, options)
             const config = { configurable: { thread_id: threadId } }
 
             let prependMessages = []
@@ -659,10 +768,15 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
     }
 
     // Get state
-    const seqStateNode = reactFlowNodes.find((node: IReactFlowNode) => node.data.name === 'seqState')
+    const seqStateNode = reactFlowNodes.find((node: any) => node.data.name === 'seqState')
     if (seqStateNode) {
         channels = {
-            ...seqStateNode.data.instance.node,
+            ...(seqStateNode.data.instance &&
+            typeof seqStateNode.data.instance === 'object' &&
+            seqStateNode.data.instance !== null &&
+            !Array.isArray(seqStateNode.data.instance)
+                ? seqStateNode.data.instance.node
+                : {}),
             ...channels
         }
     }
@@ -673,13 +787,13 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
     })
 
     /*** Validate Graph ***/
-    const startAgentNodes: IReactFlowNode[] = reactFlowNodes.filter((node: IReactFlowNode) => node.data.name === 'seqStart')
+    const startAgentNodes: IReactFlowNode[] = reactFlowNodes.filter((node: any) => node.data.name === 'seqStart')
     if (!startAgentNodes.length) throw new InternalFlowiseError(StatusCodes.INTERNAL_SERVER_ERROR, 'Start node not found')
     if (startAgentNodes.length > 1)
         throw new InternalFlowiseError(StatusCodes.INTERNAL_SERVER_ERROR, 'Graph should have only one start node')
 
-    const endAgentNodes: IReactFlowNode[] = reactFlowNodes.filter((node: IReactFlowNode) => node.data.name === 'seqEnd')
-    const loopNodes: IReactFlowNode[] = reactFlowNodes.filter((node: IReactFlowNode) => node.data.name === 'seqLoop')
+    const endAgentNodes: IReactFlowNode[] = reactFlowNodes.filter((node: any) => node.data.name === 'seqEnd')
+    const loopNodes: IReactFlowNode[] = reactFlowNodes.filter((node: any) => node.data.name === 'seqLoop')
     if (!endAgentNodes.length && !loopNodes.length) {
         throw new InternalFlowiseError(StatusCodes.INTERNAL_SERVER_ERROR, 'Graph should have at least one End/Loop node')
     }
@@ -697,15 +811,31 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
     const { nodeOverrides, variableOverrides, apiOverrideStatus } = getAPIOverrideConfig(agentflow)
 
     const initiateNode = async (node: IReactFlowNode) => {
-        const nodeInstanceFilePath = componentNodes[node.data.name].filePath as string
+        const instanceName =
+            node.data.instance &&
+            typeof node.data.instance === 'object' &&
+            node.data.instance !== null &&
+            !Array.isArray(node.data.instance) &&
+            typeof node.data.instance.name === 'string'
+                ? node.data.instance.name
+                : ''
+        const instanceLabel =
+            node.data.instance &&
+            typeof node.data.instance === 'object' &&
+            node.data.instance !== null &&
+            !Array.isArray(node.data.instance) &&
+            typeof node.data.instance.label === 'string'
+                ? node.data.instance.label
+                : ''
+        const nodeInstanceFilePath = instanceName && componentNodes[instanceName] ? (componentNodes[instanceName].filePath as string) : ''
         const nodeModule = await import(nodeInstanceFilePath)
         const newNodeInstance = new nodeModule.nodeClass()
 
         flowNodeData = cloneDeep(node.data)
         if (overrideConfig && apiOverrideStatus)
-            flowNodeData = replaceInputsWithConfig(flowNodeData, overrideConfig, nodeOverrides, variableOverrides)
+            flowNodeData = replaceInputsWithConfig(toINodeData(flowNodeData), overrideConfig, nodeOverrides, variableOverrides)
         flowNodeData = await resolveVariables(
-            flowNodeData,
+            toINodeData(flowNodeData),
             reactFlowNodes,
             question,
             chatHistory,
@@ -729,33 +859,49 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
      *  2.) With the interruptedRouteMapping object, avoid adding conditional edges to the Interrupted Agent for the nodes that are already interrupted by tools. It will be separately added from the function - agentInterruptToolFunc
      */
     const processInterruptedRouteMapping = (conditionNodeId: string) => {
-        const conditionEdges = reactFlowEdges.filter((edge) => edge.source === conditionNodeId) ?? []
+        const conditionEdges = reactFlowEdges.filter((edge: any) => edge.source === conditionNodeId) ?? []
 
         for (const conditionEdge of conditionEdges) {
             const nextNodeId = conditionEdge.target
             const conditionNodeOutputAnchorId = conditionEdge.sourceHandle
 
-            const nextNode = reactFlowNodes.find((node) => node.id === nextNodeId)
+            const nextNode = reactFlowNodes.find((node: any) => node.id === nextNodeId)
             if (!nextNode) continue
 
-            const conditionNode = reactFlowNodes.find((node) => node.id === conditionNodeId)
+            const conditionNode = reactFlowNodes.find((node: any) => node.id === conditionNodeId)
             if (!conditionNode) continue
 
-            const outputAnchors = conditionNode?.data.outputAnchors
-            if (!outputAnchors || !outputAnchors.length || !outputAnchors[0].options) continue
+            const outputs =
+                typeof conditionNode.data.outputs === 'object' &&
+                conditionNode.data.outputs !== null &&
+                !Array.isArray(conditionNode.data.outputs)
+                    ? conditionNode.data.outputs
+                    : {}
+            if (!outputs.output) continue
 
-            const conditionOutputAnchorLabel =
-                outputAnchors[0].options.find((option: any) => option.id === conditionNodeOutputAnchorId)?.label ?? ''
+            const conditionOutputAnchorLabel = outputs.output.find((option: any) => option.id === conditionNodeOutputAnchorId)?.label ?? ''
             if (!conditionOutputAnchorLabel) continue
 
             if (Object.prototype.hasOwnProperty.call(interruptedRouteMapping, conditionNodeId)) {
                 interruptedRouteMapping[conditionNodeId] = {
                     ...interruptedRouteMapping[conditionNodeId],
-                    [conditionOutputAnchorLabel]: nextNode.data.instance.name
+                    [conditionOutputAnchorLabel]:
+                        nextNode.data.instance &&
+                        typeof nextNode.data.instance === 'object' &&
+                        nextNode.data.instance !== null &&
+                        !Array.isArray(nextNode.data.instance)
+                            ? nextNode.data.instance.name
+                            : ''
                 }
             } else {
                 interruptedRouteMapping[conditionNodeId] = {
-                    [conditionOutputAnchorLabel]: nextNode.data.instance.name
+                    [conditionOutputAnchorLabel]:
+                        nextNode.data.instance &&
+                        typeof nextNode.data.instance === 'object' &&
+                        nextNode.data.instance !== null &&
+                        !Array.isArray(nextNode.data.instance)
+                            ? nextNode.data.instance.name
+                            : ''
                 }
             }
         }
@@ -769,19 +915,25 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
      *  }
      */
     const prepareConditionalEdges = (nodeId: string, nodeInstance: ISeqAgentNode) => {
-        const conditionEdges = reactFlowEdges.filter((edge) => edge.target === nodeId && edge.source.includes('seqCondition')) ?? []
+        const conditionEdges = reactFlowEdges.filter((edge: any) => edge.target === nodeId && edge.source.includes('seqCondition')) ?? []
 
         for (const conditionEdge of conditionEdges) {
             const conditionNodeId = conditionEdge.source
             const conditionNodeOutputAnchorId = conditionEdge.sourceHandle
 
-            const conditionNode = reactFlowNodes.find((node) => node.id === conditionNodeId)
-            const outputAnchors = conditionNode?.data.outputAnchors
+            const conditionNode = reactFlowNodes.find((node: any) => node.id === conditionNodeId)
+            if (!conditionNode) continue
 
-            if (!outputAnchors || !outputAnchors.length || !outputAnchors[0].options) continue
+            const outputs =
+                typeof conditionNode.data.outputs === 'object' &&
+                conditionNode.data.outputs !== null &&
+                !Array.isArray(conditionNode.data.outputs)
+                    ? conditionNode.data.outputs
+                    : {}
 
-            const conditionOutputAnchorLabel =
-                outputAnchors[0].options.find((option: any) => option.id === conditionNodeOutputAnchorId)?.label ?? ''
+            if (!outputs.output) continue
+
+            const conditionOutputAnchorLabel = outputs.output.find((option: any) => option.id === conditionNodeOutputAnchorId)?.label ?? ''
 
             if (!conditionOutputAnchorLabel) continue
 
@@ -832,7 +984,7 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
 
     /*** Start processing every Agent nodes ***/
     for (const agentNodeId of getSortedDepthNodes(depthQueue)) {
-        const agentNode = reactFlowNodes.find((node) => node.id === agentNodeId)
+        const agentNode = reactFlowNodes.find((node: any) => node.id === agentNodeId)
         if (!agentNode) continue
 
         const eligibleSeqNodes = ['seqAgent', 'seqEnd', 'seqLoop', 'seqToolNode', 'seqLLMNode', 'seqCustomFunction', 'seqExecuteFlow']
@@ -854,8 +1006,8 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
                     if (agentInstance.type === 'agent' && agentNode.data.inputs?.interrupt) {
                         interruptToolNodeNames.push(agentInstance.agentInterruptToolNode.name)
 
-                        const nextNodeId = reactFlowEdges.find((edge) => edge.source === agentNode.id)?.target
-                        const nextNode = reactFlowNodes.find((node) => node.id === nextNodeId)
+                        const nextNodeId = reactFlowEdges.find((edge: any) => edge.source === agentNode.id)?.target
+                        const nextNode = reactFlowNodes.find((node: any) => node.id === nextNodeId)
 
                         let nextNodeSeqAgentName = ''
                         if (nextNodeId && nextNode) {
@@ -945,11 +1097,11 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
 
     /*** Add conditional edges to graph for condition nodes ***/
     for (const conditionNodeId in conditionalEdges) {
-        const startConditionEdges = reactFlowEdges.filter((edge) => edge.target === conditionNodeId)
+        const startConditionEdges = reactFlowEdges.filter((edge: any) => edge.target === conditionNodeId)
         if (!startConditionEdges.length) continue
 
         for (const startConditionEdge of startConditionEdges) {
-            const startConditionNode = reactFlowNodes.find((node) => node.id === startConditionEdge.source)
+            const startConditionNode = reactFlowNodes.find((node: any) => node.id === startConditionEdge.source)
             if (!startConditionNode) continue
             seqGraph.addConditionalEdges(
                 startConditionNode.data.instance.name,
@@ -994,7 +1146,7 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
     ;(seqGraph as any).signal = options.signal
 
     /*** Get memory ***/
-    const startNode = reactFlowNodes.find((node: IReactFlowNode) => node.data.name === 'seqStart')
+    const startNode = reactFlowNodes.find((node: any) => node.data.name === 'seqStart')
     let memory = startNode?.data.instance?.checkpointMemory
 
     try {
@@ -1036,7 +1188,7 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
             humanMsg = null
         } else if (action && action.mapping && question === action.mapping.reject) {
             humanMsg = {
-                messages: action.mapping.toolCalls.map((toolCall) => {
+                messages: action.mapping.toolCalls.map((toolCall: any) => {
                     return new ToolMessage({
                         name: toolCall.name,
                         content: `Tool ${toolCall.name} call denied by user. Acknowledge that, and DONT perform further actions. Only ask if user have other questions`,

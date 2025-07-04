@@ -134,11 +134,17 @@ export const executeUpsert = async ({
 
     /*** Find the 1 final vector store will be upserted  ***/
     const vsNodes = nodes.filter((node) => node.data.category === 'Vector Stores')
-    const vsNodesWithFileUpload = vsNodes.filter((node) => node.data.inputs?.fileUpload)
+    const vsNodesWithFileUpload = vsNodes.filter(
+        (node) =>
+            typeof node.data.inputs === 'object' &&
+            node.data.inputs !== null &&
+            !Array.isArray(node.data.inputs) &&
+            typeof node.data.inputs.fileUpload !== 'undefined'
+    )
     if (vsNodesWithFileUpload.length > 1) {
         throw new InternalFlowiseError(StatusCodes.INTERNAL_SERVER_ERROR, 'Multiple vector store nodes with fileUpload enabled')
     } else if (vsNodesWithFileUpload.length === 1 && !stopNodeId) {
-        stopNodeId = vsNodesWithFileUpload[0].data.id
+        stopNodeId = typeof vsNodesWithFileUpload[0]?.data?.id === 'string' ? vsNodesWithFileUpload[0].data.id : ''
     }
 
     /*** Check if multiple vector store nodes exist, and if stopNodeId is specified ***/
@@ -148,7 +154,7 @@ export const executeUpsert = async ({
             'There are multiple vector nodes, please provide stopNodeId in body request'
         )
     } else if (vsNodes.length === 1 && !stopNodeId) {
-        stopNodeId = vsNodes[0].data.id
+        stopNodeId = typeof vsNodes[0]?.data?.id === 'string' ? vsNodes[0].data.id : ''
     } else if (!vsNodes.length && !stopNodeId) {
         throw new InternalFlowiseError(StatusCodes.NOT_FOUND, 'No vector node found')
     }

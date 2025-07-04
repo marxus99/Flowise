@@ -16,13 +16,13 @@ import {
     getFileFromUpload,
     removeSpecificFileFromUpload,
     EvaluationRunner,
-    handleEscapeCharacters
+    handleEscapeCharacters,
+    INodeData
 } from 'flowise-components'
 import { StatusCodes } from 'http-status-codes'
 import {
     IncomingInput,
     IMessage,
-    INodeData,
     IReactFlowNode,
     IReactFlowObject,
     IDepthQueue,
@@ -69,6 +69,7 @@ import { OMIT_QUEUE_JOB_DATA } from './constants'
 import { executeAgentFlow } from './buildAgentflow'
 import { Workspace } from '../enterprise/database/entities/workspace.entity'
 import { Organization } from '../enterprise/database/entities/organization.entity'
+import { toINodeData } from './index'
 
 /*
  * Initialize the ending node to be executed
@@ -110,11 +111,16 @@ const initEndingNode = async ({
     }
 
     if (incomingInput.overrideConfig && apiOverrideStatus) {
-        nodeToExecute.data = replaceInputsWithConfig(nodeToExecute.data, incomingInput.overrideConfig, nodeOverrides, variableOverrides)
+        nodeToExecute.data = replaceInputsWithConfig(
+            toINodeData(nodeToExecute.data) as any,
+            incomingInput.overrideConfig,
+            nodeOverrides,
+            variableOverrides
+        ) as any
     }
 
-    const reactFlowNodeData: INodeData = await resolveVariables(
-        nodeToExecute.data,
+    const reactFlowNodeData: INodeData = (await resolveVariables(
+        toINodeData(nodeToExecute.data) as any,
         reactFlowNodes,
         question,
         chatHistory,
@@ -122,11 +128,12 @@ const initEndingNode = async ({
         uploadedFilesContent,
         availableVariables,
         variableOverrides
-    )
+    )) as any
 
     logger.debug(`[server]: Running ${reactFlowNodeData.label} (${reactFlowNodeData.id})`)
 
-    const nodeInstanceFilePath = componentNodes[reactFlowNodeData.name].filePath as string
+    const nodeName = reactFlowNodeData.name && typeof reactFlowNodeData.name === 'string' ? reactFlowNodeData.name : ''
+    const nodeInstanceFilePath = nodeName && componentNodes[nodeName] ? (componentNodes[nodeName].filePath as string) : ''
     const nodeModule = await import(nodeInstanceFilePath)
     const nodeInstance = new nodeModule.nodeClass({ sessionId })
 
@@ -163,9 +170,12 @@ const getChatHistory = async ({
 
     if (isAgentFlow) {
         const startNode = nodes.find((node) => node.data.name === 'seqStart')
-        if (!startNode?.data?.inputs?.agentMemory) return prependMessages
-
-        const memoryNodeId = startNode.data.inputs.agentMemory.split('.')[0].replace('{{', '')
+        const startInputs =
+            typeof startNode?.data?.inputs === 'object' && startNode.data.inputs !== null && !Array.isArray(startNode.data.inputs)
+                ? startNode.data.inputs
+                : {}
+        if (!('agentMemory' in startInputs) || typeof startInputs.agentMemory !== 'string') return prependMessages
+        const memoryNodeId = startInputs.agentMemory.split('.')[0].replace('{{', '')
         const memoryNode = nodes.find((node) => node.data.id === memoryNodeId)
 
         if (memoryNode) {
@@ -188,9 +198,13 @@ const getChatHistory = async ({
      */
     for (const endingNode of endingNodes) {
         const endingNodeData = endingNode.data
-        if (!endingNodeData.inputs?.memory) continue
+        const outputs =
+            typeof endingNodeData.outputs === 'object' && endingNodeData.outputs !== null && !Array.isArray(endingNodeData.outputs)
+                ? endingNodeData.outputs
+                : {}
+        if (!('memory' in outputs) || typeof outputs.memory !== 'string') continue
 
-        const memoryNodeId = endingNodeData.inputs?.memory.split('.')[0].replace('{{', '')
+        const memoryNodeId = outputs.memory.split('.')[0].replace('{{', '')
         const memoryNode = nodes.find((node) => node.data.id === memoryNodeId)
 
         if (!memoryNode) continue
@@ -218,10 +232,11 @@ const getChatHistory = async ({
 const getSetVariableNodesOutput = (reactFlowNodes: IReactFlowNode[]) => {
     const flowVariables = {} as Record<string, unknown>
     for (const node of reactFlowNodes) {
-        if (node.data.name === 'setVariable' && (node.data.inputs?.showOutput === true || node.data.inputs?.showOutput === 'true')) {
-            const outputResult = node.data.instance
-            const variableKey = node.data.inputs?.variableName
-            flowVariables[variableKey] = outputResult
+        const setInputs =
+            typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs) ? node.data.inputs : {}
+        if (node.data.name === 'setVariable' && (setInputs.showOutput === true || setInputs.showOutput === 'true')) {
+            const variableKey = typeof setInputs.variableName === 'string' ? setInputs.variableName : ''
+            flowVariables[variableKey] = node.data.instance
         }
     }
     return flowVariables
@@ -435,7 +450,7 @@ export const executeFlow = async ({
 
     /*** Get session ID ***/
     const memoryNode = findMemoryNode(nodes, edges)
-    const memoryType = memoryNode?.data.label || ''
+    const memoryType = memoryNode?.data.label && typeof memoryNode.data.label === 'string' ? memoryNode.data.label : undefined
     let sessionId = getMemorySessionId(memoryNode, incomingInput, chatId, isInternal)
 
     /*** Get Ending Node with Directed Graph  ***/
@@ -846,30 +861,36 @@ const checkIfStreamValid = async (
     }
 
     // Once custom function ending node exists, flow is always unavailable to stream
-    const isCustomFunctionEndingNode = endingNodes.some((node) => node.data?.outputs?.output === 'EndingNode')
+    const isCustomFunctionEndingNode = endingNodes.some(
+        (node) =>
+            typeof node.data?.outputs === 'object' &&
+            node.data.outputs !== null &&
+            !Array.isArray(node.data.outputs) &&
+            node.data.outputs.output === 'EndingNode'
+    )
     if (isCustomFunctionEndingNode) return false
 
     let isStreamValid = false
     for (const endingNode of endingNodes) {
         const endingNodeData = endingNode.data || {} // Ensure endingNodeData is never undefined
 
-        const isEndingNode = endingNodeData?.outputs?.output === 'EndingNode'
+        const outputs =
+            typeof endingNodeData.outputs === 'object' && endingNodeData.outputs !== null && !Array.isArray(endingNodeData.outputs)
+                ? endingNodeData.outputs
+                : {}
+        const isEndingNode = outputs.output === 'EndingNode'
 
         // Once custom function ending node exists, no need to do follow-up checks.
         if (isEndingNode) continue
 
-        if (
-            endingNodeData.outputs &&
-            Object.keys(endingNodeData.outputs).length &&
-            !Object.values(endingNodeData.outputs ?? {}).includes(endingNodeData.name)
-        ) {
+        if (outputs && Object.keys(outputs).length && !Object.values(outputs ?? {}).includes(endingNodeData.name)) {
             throw new InternalFlowiseError(
                 StatusCodes.INTERNAL_SERVER_ERROR,
                 `Output of ${endingNodeData.label} (${endingNodeData.id}) must be ${endingNodeData.label}, can't be an Output Prediction`
             )
         }
 
-        isStreamValid = isFlowValidForStream(nodes, endingNodeData)
+        isStreamValid = isFlowValidForStream(nodes, endingNodeData as any)
     }
 
     isStreamValid = (streaming === 'true' || streaming === true) && isStreamValid

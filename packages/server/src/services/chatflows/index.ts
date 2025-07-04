@@ -57,12 +57,16 @@ const checkIfChatflowIsValidForStreaming = async (chatflowId: string): Promise<a
         let isStreaming = false
         for (const endingNode of endingNodes) {
             const endingNodeData = endingNode.data
-            const isEndingNode = endingNodeData?.outputs?.output === 'EndingNode'
+            const isEndingNode =
+                typeof endingNodeData?.outputs === 'object' &&
+                endingNodeData.outputs !== null &&
+                !Array.isArray(endingNodeData.outputs) &&
+                endingNodeData.outputs.output === 'EndingNode'
             // Once custom function ending node exists, flow is always unavailable to stream
             if (isEndingNode) {
                 return { isStreaming: false }
             }
-            isStreaming = isFlowValidForStream(nodes, endingNodeData)
+            isStreaming = isFlowValidForStream(nodes, endingNodeData as any)
         }
 
         // If it is a Multi/Sequential Agents, always enable streaming
@@ -496,10 +500,23 @@ const _checkAndUpdateDocumentStoreUsage = async (chatflow: ChatFlow, workspaceId
     const nodes = parsedFlowData.nodes
     // from the nodes array find if there is a node with name == documentStore)
     const node = nodes.length > 0 && nodes.find((node) => node.data.name === 'documentStore')
-    if (!node || !node.data || !node.data.inputs || node.data.inputs['selectedStore'] === undefined) {
+    if (
+        !node ||
+        !node.data ||
+        !node.data.inputs ||
+        (typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)
+            ? node.data.inputs['selectedStore']
+            : undefined) === undefined
+    ) {
         await documentStoreService.updateDocumentStoreUsage(chatflow.id, undefined, workspaceId)
     } else {
-        await documentStoreService.updateDocumentStoreUsage(chatflow.id, node.data.inputs['selectedStore'], workspaceId)
+        await documentStoreService.updateDocumentStoreUsage(
+            chatflow.id,
+            typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)
+                ? node.data.inputs['selectedStore']
+                : undefined,
+            workspaceId
+        )
     }
 }
 

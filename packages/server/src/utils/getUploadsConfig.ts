@@ -1,5 +1,4 @@
 import { StatusCodes } from 'http-status-codes'
-import { INodeParams } from 'flowise-components'
 import { ChatFlow } from '../database/entities/ChatFlow'
 import { getRunningExpressApp } from '../utils/getRunningExpressApp'
 import { IUploadFileSizeAndTypes, IReactFlowNode, IReactFlowEdge } from '../Interface'
@@ -56,7 +55,13 @@ export const utilGetUploadsConfig = async (chatflowid: string): Promise<IUploadC
      */
     const fileUploadSizeAndTypes: IUploadFileSizeAndTypes[] = []
     for (const node of nodes) {
-        if (node.data.category === 'Vector Stores' && node.data.inputs?.fileUpload) {
+        if (
+            node.data.category === 'Vector Stores' &&
+            typeof node.data.inputs === 'object' &&
+            node.data.inputs !== null &&
+            !Array.isArray(node.data.inputs) &&
+            node.data.inputs.fileUpload
+        ) {
             // Get the connected document loader node fileTypes
             const sourceDocumentEdges = edges.filter(
                 (edge) => edge.target === node.id && edge.targetHandle === `${node.id}-input-document-Document`
@@ -64,7 +69,13 @@ export const utilGetUploadsConfig = async (chatflowid: string): Promise<IUploadC
             for (const edge of sourceDocumentEdges) {
                 const sourceNode = nodes.find((node) => node.id === edge.source)
                 if (!sourceNode) continue
-                const fileType = sourceNode.data.inputParams.find((param) => param.type === 'file' && param.fileType)?.fileType
+                const inputs =
+                    typeof sourceNode.data.inputParams === 'object' &&
+                    sourceNode.data.inputParams !== null &&
+                    Array.isArray(sourceNode.data.inputParams)
+                        ? sourceNode.data.inputParams
+                        : []
+                const fileType = inputs.find((param: any) => param.type === 'file' && param.fileType)?.fileType
                 if (fileType) {
                     fileUploadSizeAndTypes.push({
                         fileTypes: fileType.split(', '),
@@ -99,10 +110,24 @@ export const utilGetUploadsConfig = async (chatflowid: string): Promise<IUploadC
         // check through all the nodes and check if any of the nodes data inputs agentModelConfig or llmModelConfig or conditionAgentModelConfig has allowImageUploads
         nodes.forEach((node) => {
             if (node.data.category === 'Agent Flows') {
+                const inputs =
+                    typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)
+                        ? node.data.inputs
+                        : {}
+                const agentInputs =
+                    typeof node.data.inputs === 'object' && node.data.inputs !== null && !Array.isArray(node.data.inputs)
+                        ? node.data.inputs
+                        : {}
                 if (
-                    node.data.inputs?.agentModelConfig?.allowImageUploads ||
-                    node.data.inputs?.llmModelConfig?.allowImageUploads ||
-                    node.data.inputs?.conditionAgentModelConfig?.allowImageUploads
+                    (typeof agentInputs.agentModelConfig === 'object' &&
+                        agentInputs.agentModelConfig !== null &&
+                        agentInputs.agentModelConfig.allowImageUploads) ||
+                    (typeof agentInputs.llmModelConfig === 'object' &&
+                        agentInputs.llmModelConfig !== null &&
+                        agentInputs.llmModelConfig.allowImageUploads) ||
+                    (typeof agentInputs.conditionAgentModelConfig === 'object' &&
+                        agentInputs.conditionAgentModelConfig !== null &&
+                        agentInputs.conditionAgentModelConfig.allowImageUploads)
                 ) {
                     imgUploadSizeAndTypes.push({
                         fileTypes: 'image/gif;image/jpeg;image/png;image/webp;'.split(';'),
@@ -113,20 +138,17 @@ export const utilGetUploadsConfig = async (chatflowid: string): Promise<IUploadC
             }
         })
     } else {
-        if (nodes.some((node) => imgUploadAllowedNodes.includes(node.data.name))) {
+        if (nodes.some((node) => imgUploadAllowedNodes.includes(typeof node.data.name === 'string' ? node.data.name : ''))) {
             nodes.forEach((node: IReactFlowNode) => {
                 const data = node.data
-                if (data.category === 'Chat Models' && data.inputs?.['allowImageUploads'] === true) {
+                const inputs = typeof data.inputs === 'object' && data.inputs !== null && !Array.isArray(data.inputs) ? data.inputs : {}
+                if (data.category === 'Chat Models' && inputs.allowImageUploads === true) {
                     // TODO: for now the maxUploadSize is hardcoded to 5MB, we need to add it to the node properties
-                    node.data.inputParams.map((param: INodeParams) => {
-                        if (param.name === 'allowImageUploads' && node.data.inputs?.['allowImageUploads']) {
-                            imgUploadSizeAndTypes.push({
-                                fileTypes: 'image/gif;image/jpeg;image/png;image/webp;'.split(';'),
-                                maxUploadSize: 5
-                            })
-                            isImageUploadAllowed = true
-                        }
+                    imgUploadSizeAndTypes.push({
+                        fileTypes: 'image/gif;image/jpeg;image/png;image/webp;'.split(';'),
+                        maxUploadSize: 5
                     })
+                    isImageUploadAllowed = true
                 }
             })
         }
