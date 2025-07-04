@@ -37,47 +37,140 @@ export default defineConfig(async ({ mode }) => {
                 '@lezer/highlight': resolve(__dirname, '../../node_modules/@lezer/highlight')
             }
         },
+        optimizeDeps: {
+            include: [
+                'react',
+                'react-dom',
+                'react-router',
+                'react-router-dom',
+                '@mui/material',
+                '@mui/system',
+                '@mui/icons-material',
+                'lodash',
+                'axios',
+                'formik',
+                'yup'
+            ],
+            exclude: [
+                '@codemirror/state',
+                '@codemirror/view',
+                '@codemirror/language',
+                '@uiw/react-codemirror',
+                '@lezer/common',
+                '@lezer/highlight'
+            ]
+        },
         root: resolve(__dirname),
         build: {
             outDir: './build',
             rollupOptions: {
                 output: {
-                    manualChunks: {
-                        // Split React and React-DOM into separate chunks to avoid circular deps
-                        'react-core': ['react'],
-                        'react-dom-core': ['react-dom'],
-                        'react-router': ['react-router', 'react-router-dom'],
-                        // MUI components
-                        'mui-core': ['@mui/material', '@mui/system'],
-                        'mui-icons': ['@mui/icons-material'],
-                        'mui-lab': ['@mui/lab'],
-                        'mui-x': ['@mui/x-data-grid', '@mui/x-tree-view'],
-                        // Editor dependencies
-                        codemirror: ['@codemirror/state', '@codemirror/view', '@codemirror/language'],
-                        'codemirror-lang': ['@codemirror/lang-javascript', '@codemirror/lang-json'],
-                        'uiw-codemirror': ['@uiw/react-codemirror', '@uiw/codemirror-theme-vscode', '@uiw/codemirror-theme-sublime'],
-                        lezer: ['@lezer/common', '@lezer/highlight'],
-                        // Other large dependencies
-                        lodash: ['lodash'],
-                        formik: ['formik'],
-                        yup: ['yup'],
-                        axios: ['axios'],
-                        // Reactflow
-                        reactflow: ['reactflow', '@reactflow/core', '@reactflow/node-resizer']
+                    manualChunks: (id) => {
+                        // Base React framework - keep completely separate
+                        if (id.includes('react/') || id.includes('react\\')) {
+                            return 'react-base'
+                        }
+                        if (id.includes('react-dom/') || id.includes('react-dom\\')) {
+                            return 'react-dom-base'
+                        }
+                        if (id.includes('react-router')) {
+                            return 'react-router-base'
+                        }
+
+                        // MUI components - separate by type
+                        if (id.includes('@mui/material')) {
+                            return 'mui-material'
+                        }
+                        if (id.includes('@mui/system')) {
+                            return 'mui-system'
+                        }
+                        if (id.includes('@mui/icons-material')) {
+                            return 'mui-icons'
+                        }
+                        if (id.includes('@mui/lab')) {
+                            return 'mui-lab'
+                        }
+                        if (id.includes('@mui/x-')) {
+                            return 'mui-x'
+                        }
+
+                        // Editor dependencies - completely isolated
+                        if (id.includes('@codemirror/state')) {
+                            return 'codemirror-state'
+                        }
+                        if (id.includes('@codemirror/view')) {
+                            return 'codemirror-view'
+                        }
+                        if (id.includes('@codemirror/language')) {
+                            return 'codemirror-language'
+                        }
+                        if (id.includes('@codemirror/lang-')) {
+                            return 'codemirror-langs'
+                        }
+                        if (id.includes('@uiw/react-codemirror')) {
+                            return 'uiw-codemirror'
+                        }
+                        if (id.includes('@uiw/codemirror-theme')) {
+                            return 'uiw-themes'
+                        }
+                        if (id.includes('@lezer/')) {
+                            return 'lezer'
+                        }
+
+                        // Large utility libraries
+                        if (id.includes('lodash')) {
+                            return 'lodash'
+                        }
+                        if (id.includes('axios')) {
+                            return 'axios'
+                        }
+                        if (id.includes('formik')) {
+                            return 'formik'
+                        }
+                        if (id.includes('yup')) {
+                            return 'yup'
+                        }
+
+                        // ReactFlow components
+                        if (id.includes('reactflow') || id.includes('@reactflow/')) {
+                            return 'reactflow'
+                        }
+
+                        // Other node_modules as vendor
+                        if (id.includes('node_modules')) {
+                            return 'vendor'
+                        }
+
+                        // Return undefined for app code (will be in main chunk)
+                        return undefined
+                    },
+                    // Ensure proper chunk loading order
+                    chunkFileNames: (chunkInfo) => {
+                        const name = chunkInfo.name
+                        if (name === 'react-base') return 'assets/react-base-[hash].js'
+                        if (name === 'react-dom-base') return 'assets/react-dom-base-[hash].js'
+                        if (name === 'react-router-base') return 'assets/react-router-base-[hash].js'
+                        return 'assets/[name]-[hash].js'
                     }
                 },
-                // Prevent circular dependencies
-                external: (_id) => {
-                    // Don't bundle these as external in the browser build
-                    return false
-                }
+                // Ensure no externals in browser build
+                external: () => false
             },
-            // Increase chunk size warning limit since we're splitting more
+            // Increase chunk size warning limit
             chunkSizeWarningLimit: 1000,
-            // Ensure proper module format
-            target: 'esnext',
+            // Use ES modules for better tree shaking
+            target: 'es2015',
             minify: 'terser',
-            sourcemap: false
+            sourcemap: false,
+            // Ensure proper module format
+            lib: undefined,
+            // Add more aggressive optimization
+            terserOptions: {
+                compress: {
+                    drop_console: true,
+                    drop_debugger: true
+                }
+            }
         },
         server: {
             open: true,
