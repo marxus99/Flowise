@@ -42,23 +42,42 @@ export default defineConfig(async ({ mode }) => {
             outDir: './build',
             rollupOptions: {
                 output: {
-                    manualChunks(id) {
-                        // Create vendor chunk for node_modules
-                        if (id.includes('node_modules')) {
-                            if (id.includes('react') || id.includes('react-dom')) {
-                                return 'react-vendor'
-                            }
-                            if (id.includes('@mui')) {
-                                return 'mui-vendor'
-                            }
-                            if (id.includes('@codemirror') || id.includes('@uiw') || id.includes('@lezer')) {
-                                return 'editor-vendor'
-                            }
-                            return 'vendor'
-                        }
+                    manualChunks: {
+                        // Split React and React-DOM into separate chunks to avoid circular deps
+                        'react-core': ['react'],
+                        'react-dom-core': ['react-dom'],
+                        'react-router': ['react-router', 'react-router-dom'],
+                        // MUI components
+                        'mui-core': ['@mui/material', '@mui/system'],
+                        'mui-icons': ['@mui/icons-material'],
+                        'mui-lab': ['@mui/lab'],
+                        'mui-x': ['@mui/x-data-grid', '@mui/x-tree-view'],
+                        // Editor dependencies
+                        codemirror: ['@codemirror/state', '@codemirror/view', '@codemirror/language'],
+                        'codemirror-lang': ['@codemirror/lang-javascript', '@codemirror/lang-json'],
+                        'uiw-codemirror': ['@uiw/react-codemirror', '@uiw/codemirror-theme-vscode', '@uiw/codemirror-theme-sublime'],
+                        lezer: ['@lezer/common', '@lezer/highlight'],
+                        // Other large dependencies
+                        lodash: ['lodash'],
+                        formik: ['formik'],
+                        yup: ['yup'],
+                        axios: ['axios'],
+                        // Reactflow
+                        reactflow: ['reactflow', '@reactflow/core', '@reactflow/node-resizer']
                     }
+                },
+                // Prevent circular dependencies
+                external: (_id) => {
+                    // Don't bundle these as external in the browser build
+                    return false
                 }
-            }
+            },
+            // Increase chunk size warning limit since we're splitting more
+            chunkSizeWarningLimit: 1000,
+            // Ensure proper module format
+            target: 'esnext',
+            minify: 'terser',
+            sourcemap: false
         },
         server: {
             open: true,
