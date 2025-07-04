@@ -285,22 +285,16 @@ export const getAllConnectedNodes = (graph: INodeDirectedGraph, startNodeId: str
     while (queue.length > 0) {
         const [currentNode] = queue.shift()!
 
-        if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
-            if (visited.has(currentNode)) {
-                continue
-            }
+        if (visited.has(currentNode)) {
+            continue
         }
 
-        if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
-            visited.add(currentNode)
-        }
+        visited.add(currentNode)
 
         if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {
             graph[currentNode].flatMap((neighbor) => {
-                if (typeof visited === 'object' && visited !== null && !Array.isArray(visited)) {
-                    if (!visited.has(neighbor)) {
-                        queue.push([neighbor])
-                    }
+                if (!visited.has(neighbor)) {
+                    queue.push([neighbor])
                 }
             })
         }
@@ -474,11 +468,7 @@ export const saveUpsertFlowData = (nodeData: INodeData, upsertHistory: Record<st
  * @param {IReactFlowEdge[]} reactFlowEdges
  * @returns {boolean}
  */
-const checkIfDocLoaderShouldBeIgnored = (
-    reactFlowNode: IReactFlowNode,
-    reactFlowNodes: IReactFlowNode[],
-    reactFlowEdges: IReactFlowEdge[]
-): boolean => {
+const checkIfDocLoaderShouldBeIgnored = (reactFlowNode: IReactFlowNode, reactFlowNodes: IReactFlowNode[]): boolean => {
     let outputId = ''
 
     if (
@@ -675,7 +665,7 @@ export const buildFlow = async ({
                 } else if (
                     !isUpsert &&
                     reactFlowNode.data.category === 'Document Loaders' &&
-                    checkIfDocLoaderShouldBeIgnored(reactFlowNode, reactFlowNodes, reactFlowEdges)
+                    checkIfDocLoaderShouldBeIgnored(reactFlowNode, reactFlowNodes)
                 ) {
                     initializedNodes.add(nodeId)
                 } else {

@@ -39,7 +39,26 @@ export default defineConfig(async ({ mode }) => {
         },
         root: resolve(__dirname),
         build: {
-            outDir: './build'
+            outDir: './build',
+            rollupOptions: {
+                output: {
+                    manualChunks(id) {
+                        // Create vendor chunk for node_modules
+                        if (id.includes('node_modules')) {
+                            if (id.includes('react') || id.includes('react-dom')) {
+                                return 'react-vendor'
+                            }
+                            if (id.includes('@mui')) {
+                                return 'mui-vendor'
+                            }
+                            if (id.includes('@codemirror') || id.includes('@uiw') || id.includes('@lezer')) {
+                                return 'editor-vendor'
+                            }
+                            return 'vendor'
+                        }
+                    }
+                }
+            }
         },
         server: {
             open: true,
