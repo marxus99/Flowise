@@ -24,17 +24,7 @@ export default defineConfig(async ({ mode }) => {
         plugins: [react()],
         resolve: {
             alias: {
-                '@': resolve(__dirname, 'src'),
-                '@codemirror/state': resolve(__dirname, '../../node_modules/@codemirror/state'),
-                '@codemirror/view': resolve(__dirname, '../../node_modules/@codemirror/view'),
-                '@codemirror/language': resolve(__dirname, '../../node_modules/@codemirror/language'),
-                '@codemirror/lang-javascript': resolve(__dirname, '../../node_modules/@codemirror/lang-javascript'),
-                '@codemirror/lang-json': resolve(__dirname, '../../node_modules/@codemirror/lang-json'),
-                '@uiw/react-codemirror': resolve(__dirname, '../../node_modules/@uiw/react-codemirror'),
-                '@uiw/codemirror-theme-vscode': resolve(__dirname, '../../node_modules/@uiw/codemirror-theme-vscode'),
-                '@uiw/codemirror-theme-sublime': resolve(__dirname, '../../node_modules/@uiw/codemirror-theme-sublime'),
-                '@lezer/common': resolve(__dirname, '../../node_modules/@lezer/common'),
-                '@lezer/highlight': resolve(__dirname, '../../node_modules/@lezer/highlight')
+                '@': resolve(__dirname, 'src')
             }
         },
         optimizeDeps: {
@@ -49,13 +39,17 @@ export default defineConfig(async ({ mode }) => {
                 'lodash',
                 'axios',
                 'formik',
-                'yup'
-            ],
-            exclude: [
+                'yup',
+                // Include CodeMirror dependencies for proper bundling
                 '@codemirror/state',
                 '@codemirror/view',
                 '@codemirror/language',
+                '@codemirror/lang-javascript',
+                '@codemirror/lang-json',
+                '@codemirror/lang-markdown',
                 '@uiw/react-codemirror',
+                '@uiw/codemirror-theme-vscode',
+                '@uiw/codemirror-theme-sublime',
                 '@lezer/common',
                 '@lezer/highlight'
             ]
@@ -78,27 +72,14 @@ export default defineConfig(async ({ mode }) => {
                             return 'react-vendor'
                         }
 
-                        // Editor dependencies - completely isolated
-                        if (id.includes('@codemirror/state')) {
-                            return 'codemirror-state'
-                        }
-                        if (id.includes('@codemirror/view')) {
-                            return 'codemirror-view'
-                        }
-                        if (id.includes('@codemirror/language')) {
-                            return 'codemirror-language'
-                        }
-                        if (id.includes('@codemirror/lang-')) {
-                            return 'codemirror-langs'
-                        }
-                        if (id.includes('@uiw/react-codemirror')) {
-                            return 'uiw-codemirror'
-                        }
-                        if (id.includes('@uiw/codemirror-theme')) {
-                            return 'uiw-themes'
-                        }
-                        if (id.includes('@lezer/')) {
-                            return 'lezer'
+                        // Bundle ALL CodeMirror dependencies together to prevent initialization order issues
+                        if (
+                            id.includes('@codemirror/') ||
+                            id.includes('@uiw/react-codemirror') ||
+                            id.includes('@uiw/codemirror-theme') ||
+                            id.includes('@lezer/')
+                        ) {
+                            return 'codemirror-bundle'
                         }
 
                         // Large utility libraries
@@ -132,10 +113,11 @@ export default defineConfig(async ({ mode }) => {
                     chunkFileNames: (chunkInfo) => {
                         const name = chunkInfo.name
                         if (name === 'react-vendor') return 'assets/react-vendor-[hash].js'
+                        if (name === 'codemirror-bundle') return 'assets/codemirror-bundle-[hash].js'
                         return 'assets/[name]-[hash].js'
                     }
                 },
-                // Ensure no externals in browser build
+                // Ensure no externals in browser build - bundle everything
                 external: () => false
             },
             // Increase chunk size warning limit
