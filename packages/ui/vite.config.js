@@ -39,8 +39,10 @@ export default defineConfig(async ({ mode }) => {
                 'lodash',
                 'axios',
                 'formik',
-                'yup',
-                // Include CodeMirror dependencies for proper bundling
+                'yup'
+            ],
+            exclude: [
+                // Exclude CodeMirror dependencies to prevent bundling issues
                 '@codemirror/state',
                 '@codemirror/view',
                 '@codemirror/language',
@@ -72,14 +74,14 @@ export default defineConfig(async ({ mode }) => {
                             return 'react-vendor'
                         }
 
-                        // Bundle ALL CodeMirror dependencies together to prevent initialization order issues
+                        // Keep CodeMirror dependencies separate to avoid bundling issues
                         if (
                             id.includes('@codemirror/') ||
                             id.includes('@uiw/react-codemirror') ||
                             id.includes('@uiw/codemirror-theme') ||
                             id.includes('@lezer/')
                         ) {
-                            return 'codemirror-bundle'
+                            return undefined // Don't bundle CodeMirror - let browser handle natively
                         }
 
                         // Large utility libraries
@@ -113,7 +115,6 @@ export default defineConfig(async ({ mode }) => {
                     chunkFileNames: (chunkInfo) => {
                         const name = chunkInfo.name
                         if (name === 'react-vendor') return 'assets/react-vendor-[hash].js'
-                        if (name === 'codemirror-bundle') return 'assets/codemirror-bundle-[hash].js'
                         return 'assets/[name]-[hash].js'
                     }
                 },
