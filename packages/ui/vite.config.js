@@ -64,12 +64,12 @@ export default defineConfig(async ({ mode }) => {
                     manualChunks: (id) => {
                         // Bundle ALL React-dependent packages together to prevent context issues
                         if (
-                            id.includes('react/') ||
-                            id.includes('react\\') ||
-                            id.includes('react-dom/') ||
-                            id.includes('react-dom\\') ||
+                            id.includes('react') ||
+                            id.includes('react-dom') ||
                             id.includes('react-router') ||
-                            id.includes('@mui/')
+                            id.includes('@mui/') ||
+                            id.includes('react-redux') ||
+                            id.includes('@reduxjs/toolkit')
                         ) {
                             return 'react-vendor'
                         }
