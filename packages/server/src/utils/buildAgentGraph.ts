@@ -544,7 +544,7 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
             typeof workerNode.data.instance.name === 'string'
                 ? workerNode.data.instance.name
                 : ''
-        const instanceLabel =
+        const _instanceLabel =
             workerNode.data.instance &&
             typeof workerNode.data.instance === 'object' &&
             workerNode.data.instance !== null &&
@@ -605,7 +605,7 @@ const compileMultiAgentsGraph = async (params: MultiAgentsGraphParams) => {
             typeof supervisorNode.data.instance.name === 'string'
                 ? supervisorNode.data.instance.name
                 : ''
-        const instanceLabel =
+        const _instanceLabel =
             supervisorNode.data.instance &&
             typeof supervisorNode.data.instance === 'object' &&
             supervisorNode.data.instance !== null &&
@@ -819,7 +819,7 @@ const compileSeqAgentsGraph = async (params: SeqAgentsGraphParams) => {
             typeof node.data.instance.name === 'string'
                 ? node.data.instance.name
                 : ''
-        const instanceLabel =
+        const _instanceLabel =
             node.data.instance &&
             typeof node.data.instance === 'object' &&
             node.data.instance !== null &&

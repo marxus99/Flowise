@@ -66,29 +66,16 @@ export default defineConfig(async ({ mode }) => {
             rollupOptions: {
                 output: {
                     manualChunks: (id) => {
-                        // Keep React and React-DOM together - they have internal dependencies
-                        if (id.includes('react/') || id.includes('react\\') || id.includes('react-dom/') || id.includes('react-dom\\')) {
+                        // Bundle ALL React-dependent packages together to prevent context issues
+                        if (
+                            id.includes('react/') ||
+                            id.includes('react\\') ||
+                            id.includes('react-dom/') ||
+                            id.includes('react-dom\\') ||
+                            id.includes('react-router') ||
+                            id.includes('@mui/')
+                        ) {
                             return 'react-vendor'
-                        }
-                        if (id.includes('react-router')) {
-                            return 'react-router-base'
-                        }
-
-                        // MUI components - separate by type
-                        if (id.includes('@mui/material')) {
-                            return 'mui-material'
-                        }
-                        if (id.includes('@mui/system')) {
-                            return 'mui-system'
-                        }
-                        if (id.includes('@mui/icons-material')) {
-                            return 'mui-icons'
-                        }
-                        if (id.includes('@mui/lab')) {
-                            return 'mui-lab'
-                        }
-                        if (id.includes('@mui/x-')) {
-                            return 'mui-x'
                         }
 
                         // Editor dependencies - completely isolated
@@ -145,7 +132,6 @@ export default defineConfig(async ({ mode }) => {
                     chunkFileNames: (chunkInfo) => {
                         const name = chunkInfo.name
                         if (name === 'react-vendor') return 'assets/react-vendor-[hash].js'
-                        if (name === 'react-router-base') return 'assets/react-router-base-[hash].js'
                         return 'assets/[name]-[hash].js'
                     }
                 },
