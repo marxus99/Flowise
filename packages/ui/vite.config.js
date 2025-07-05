@@ -66,12 +66,9 @@ export default defineConfig(async ({ mode }) => {
             rollupOptions: {
                 output: {
                     manualChunks: (id) => {
-                        // Base React framework - keep completely separate
-                        if (id.includes('react/') || id.includes('react\\')) {
-                            return 'react-base'
-                        }
-                        if (id.includes('react-dom/') || id.includes('react-dom\\')) {
-                            return 'react-dom-base'
+                        // Keep React and React-DOM together - they have internal dependencies
+                        if (id.includes('react/') || id.includes('react\\') || id.includes('react-dom/') || id.includes('react-dom\\')) {
+                            return 'react-vendor'
                         }
                         if (id.includes('react-router')) {
                             return 'react-router-base'
@@ -147,8 +144,7 @@ export default defineConfig(async ({ mode }) => {
                     // Ensure proper chunk loading order
                     chunkFileNames: (chunkInfo) => {
                         const name = chunkInfo.name
-                        if (name === 'react-base') return 'assets/react-base-[hash].js'
-                        if (name === 'react-dom-base') return 'assets/react-dom-base-[hash].js'
+                        if (name === 'react-vendor') return 'assets/react-vendor-[hash].js'
                         if (name === 'react-router-base') return 'assets/react-router-base-[hash].js'
                         return 'assets/[name]-[hash].js'
                     }
