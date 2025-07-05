@@ -28,19 +28,7 @@ export default defineConfig(async ({ mode }) => {
             }
         },
         optimizeDeps: {
-            include: [
-                'react',
-                'react-dom',
-                'react-router',
-                'react-router-dom',
-                '@mui/material',
-                '@mui/system',
-                '@mui/icons-material',
-                'lodash',
-                'axios',
-                'formik',
-                'yup'
-            ],
+            include: ['react', 'react-dom'],
             exclude: [
                 // Exclude CodeMirror dependencies to prevent bundling issues
                 '@codemirror/state',
@@ -53,7 +41,20 @@ export default defineConfig(async ({ mode }) => {
                 '@uiw/codemirror-theme-vscode',
                 '@uiw/codemirror-theme-sublime',
                 '@lezer/common',
-                '@lezer/highlight'
+                '@lezer/highlight',
+                // Exclude large libraries that may cause circular dependencies
+                'lodash',
+                'axios',
+                'formik',
+                'yup',
+                'reactflow',
+                '@mui/material',
+                '@mui/system',
+                '@mui/icons-material',
+                'react-router',
+                'react-router-dom',
+                'react-redux',
+                '@reduxjs/toolkit'
             ]
         },
         root: resolve(__dirname),
@@ -62,59 +63,18 @@ export default defineConfig(async ({ mode }) => {
             rollupOptions: {
                 output: {
                     manualChunks: (id) => {
-                        // Bundle ALL React-dependent packages together to prevent context issues
-                        if (
-                            id.includes('react') ||
-                            id.includes('react-dom') ||
-                            id.includes('react-router') ||
-                            id.includes('@mui/') ||
-                            id.includes('react-redux') ||
-                            id.includes('@reduxjs/toolkit')
-                        ) {
-                            return 'react-vendor'
+                        // Only bundle React core together - avoid large vendor bundles
+                        if (id.includes('react') && !id.includes('react-router') && !id.includes('react-redux')) {
+                            return 'react-core'
                         }
 
-                        // Keep CodeMirror dependencies separate to avoid bundling issues
-                        if (
-                            id.includes('@codemirror/') ||
-                            id.includes('@uiw/react-codemirror') ||
-                            id.includes('@uiw/codemirror-theme') ||
-                            id.includes('@lezer/')
-                        ) {
-                            return undefined // Don't bundle CodeMirror - let browser handle natively
-                        }
-
-                        // Large utility libraries
-                        if (id.includes('lodash')) {
-                            return 'lodash'
-                        }
-                        if (id.includes('axios')) {
-                            return 'axios'
-                        }
-                        if (id.includes('formik')) {
-                            return 'formik'
-                        }
-                        if (id.includes('yup')) {
-                            return 'yup'
-                        }
-
-                        // ReactFlow components
-                        if (id.includes('reactflow') || id.includes('@reactflow/')) {
-                            return 'reactflow'
-                        }
-
-                        // Other node_modules as vendor
-                        if (id.includes('node_modules')) {
-                            return 'vendor'
-                        }
-
-                        // Return undefined for app code (will be in main chunk)
+                        // Don't bundle anything else to avoid circular dependencies
                         return undefined
                     },
                     // Ensure proper chunk loading order
                     chunkFileNames: (chunkInfo) => {
                         const name = chunkInfo.name
-                        if (name === 'react-vendor') return 'assets/react-vendor-[hash].js'
+                        if (name === 'react-core') return 'assets/react-core-[hash].js'
                         return 'assets/[name]-[hash].js'
                     }
                 },
@@ -135,6 +95,10 @@ export default defineConfig(async ({ mode }) => {
                     drop_console: true,
                     drop_debugger: true
                 }
+            },
+            // Add specific options to prevent circular dependency issues
+            treeshake: {
+                moduleSideEffects: false
             }
         },
         server: {
