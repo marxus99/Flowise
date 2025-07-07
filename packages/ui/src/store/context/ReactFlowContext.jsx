@@ -100,8 +100,8 @@ export const ReactFlowContext = ({ children }) => {
             }
 
             try {
-                const currentNodes = reactFlowInstance.getNodes()
-                if (!currentNodes || currentNodes.length === 0) {
+                const currentNodes = reactFlowInstance.getNodes() || []
+                if (currentNodes.length === 0) {
                     console.warn('No nodes available for data change')
                     return
                 }
@@ -158,8 +158,8 @@ export const ReactFlowContext = ({ children }) => {
             try {
                 const connectedEdges =
                     type === 'node'
-                        ? reactFlowInstance.getEdges().filter((edge) => edge.source === id)
-                        : reactFlowInstance.getEdges().filter((edge) => edge.id === id)
+                        ? (reactFlowInstance.getEdges() || []).filter((edge) => edge.source === id)
+                        : (reactFlowInstance.getEdges() || []).filter((edge) => edge.id === id)
 
                 for (const edge of connectedEdges) {
                     const targetNodeId = edge.target
@@ -215,7 +215,7 @@ export const ReactFlowContext = ({ children }) => {
 
                 // Helper function to collect all descendant nodes recursively
                 const collectDescendants = (parentId) => {
-                    const childNodes = reactFlowInstance.getNodes().filter((node) => node.parentNode === parentId)
+                    const childNodes = (reactFlowInstance.getNodes() || []).filter((node) => node.parentNode === parentId)
 
                     childNodes.forEach((childNode) => {
                         nodesToDelete.add(childNode.id)
@@ -262,7 +262,7 @@ export const ReactFlowContext = ({ children }) => {
 
             try {
                 deleteConnectedInput(edgeid, 'edge')
-                reactFlowInstance.setEdges(reactFlowInstance.getEdges().filter((edge) => edge.id !== edgeid))
+                reactFlowInstance.setEdges((reactFlowInstance.getEdges() || []).filter((edge) => edge.id !== edgeid))
                 dispatch({ type: SET_DIRTY })
             } catch (err) {
                 console.error('Error deleting edge:', err)
@@ -279,7 +279,7 @@ export const ReactFlowContext = ({ children }) => {
             }
 
             try {
-                const nodes = reactFlowInstance.getNodes()
+                const nodes = reactFlowInstance.getNodes() || []
                 const originalNode = nodes.find((n) => n.id === id)
                 if (!originalNode) {
                     console.warn('Original node not found for duplication')
@@ -310,7 +310,8 @@ export const ReactFlowContext = ({ children }) => {
 
                 const inputKeys = ['inputParams', 'inputAnchors']
                 for (const key of inputKeys) {
-                    for (const item of duplicatedNode.data[key]) {
+                    const items = duplicatedNode.data[key] || []
+                    for (const item of items) {
                         if (item.id) {
                             item.id = item.id.replace(id, newNodeId)
                         }
@@ -319,12 +320,14 @@ export const ReactFlowContext = ({ children }) => {
 
                 const outputKeys = ['outputAnchors']
                 for (const key of outputKeys) {
-                    for (const item of duplicatedNode.data[key]) {
+                    const items = duplicatedNode.data[key] || []
+                    for (const item of items) {
                         if (item.id) {
                             item.id = item.id.replace(id, newNodeId)
                         }
                         if (item.options) {
-                            for (const output of item.options) {
+                            const options = item.options || []
+                            for (const output of options) {
                                 output.id = output.id.replace(id, newNodeId)
                             }
                         }
@@ -332,15 +335,12 @@ export const ReactFlowContext = ({ children }) => {
                 }
 
                 // Clear connected inputs
-                for (const inputName in duplicatedNode.data.inputs) {
-                    if (
-                        typeof duplicatedNode.data.inputs[inputName] === 'string' &&
-                        duplicatedNode.data.inputs[inputName].startsWith('{{') &&
-                        duplicatedNode.data.inputs[inputName].endsWith('}}')
-                    ) {
-                        duplicatedNode.data.inputs[inputName] = ''
-                    } else if (Array.isArray(duplicatedNode.data.inputs[inputName])) {
-                        duplicatedNode.data.inputs[inputName] = duplicatedNode.data.inputs[inputName].filter(
+                const inputs = duplicatedNode.data.inputs || {}
+                for (const inputName in inputs) {
+                    if (typeof inputs[inputName] === 'string' && inputs[inputName].startsWith('{{') && inputs[inputName].endsWith('}}')) {
+                        inputs[inputName] = ''
+                    } else if (Array.isArray(inputs[inputName])) {
+                        inputs[inputName] = inputs[inputName].filter(
                             (item) => !(typeof item === 'string' && item.startsWith('{{') && item.endsWith('}}'))
                         )
                     }
