@@ -185,7 +185,8 @@ const SignInPage = () => {
                     isOrganizationAdmin: true, // For basic auth, grant admin access
                     token: 'basic-auth-token',
                     permissions: [],
-                    features: {}
+                    features: {},
+                    assignedWorkspaces: []
                 }
                 store.dispatch(loginSuccess(userData))
                 navigate(location.state?.path || '/chatflows')
