@@ -358,8 +358,10 @@ const SignInPage = () => {
                             >
                                 Login
                             </LoadingButton>
-                            {configuredSsoProviders && configuredSsoProviders.length > 0 && <Divider sx={{ width: '100%' }}>OR</Divider>}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) && configuredSsoProviders.length > 0 && (
+                                <Divider sx={{ width: '100%' }}>OR</Divider>
+                            )}
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         //https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps
@@ -379,7 +381,7 @@ const SignInPage = () => {
                                             </Button>
                                         )
                                 )}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         ssoProvider === 'google' && (
@@ -398,7 +400,7 @@ const SignInPage = () => {
                                             </Button>
                                         )
                                 )}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         ssoProvider === 'auth0' && (
@@ -417,7 +419,7 @@ const SignInPage = () => {
                                             </Button>
                                         )
                                 )}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         ssoProvider === 'github' && (

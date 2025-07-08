@@ -395,8 +395,10 @@ const RegisterPage = () => {
                             <StyledButton variant='contained' style={{ borderRadius: 12, height: 40, marginRight: 5 }} type='submit'>
                                 Create Account
                             </StyledButton>
-                            {configuredSsoProviders.length > 0 && <Divider sx={{ width: '100%' }}>OR</Divider>}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) && configuredSsoProviders.length > 0 && (
+                                <Divider sx={{ width: '100%' }}>OR</Divider>
+                            )}
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         //https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps
@@ -416,7 +418,7 @@ const RegisterPage = () => {
                                             </Button>
                                         )
                                 )}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         ssoProvider === 'google' && (
@@ -435,7 +437,7 @@ const RegisterPage = () => {
                                             </Button>
                                         )
                                 )}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         ssoProvider === 'auth0' && (
@@ -454,7 +456,7 @@ const RegisterPage = () => {
                                             </Button>
                                         )
                                 )}
-                            {configuredSsoProviders &&
+                            {Array.isArray(configuredSsoProviders) &&
                                 configuredSsoProviders.map(
                                     (ssoProvider) =>
                                         ssoProvider === 'github' && (
