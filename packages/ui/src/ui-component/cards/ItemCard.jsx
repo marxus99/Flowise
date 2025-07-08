@@ -160,7 +160,7 @@ const ItemCard = ({ data, images, icons, onClick }) => {
                                 <MoreItemsTooltip
                                     images={[
                                         ...(images?.slice(3) || []),
-                                        ...(icons?.slice(Math.max(0, 3 - (images?.length || 0))) || []).map((ic) => ({ label: ic.name }))
+                                        ...(icons || []).slice(Math.max(0, 3 - (images?.length || 0))).map((ic) => ({ label: ic.name }))
                                     ]}
                                 >
                                     <Typography
