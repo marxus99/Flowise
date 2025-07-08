@@ -275,7 +275,7 @@ const OrgWorkspaceBreadcrumbs = () => {
             {isAuthenticated && user ? (
                 <>
                     <StyledMenu anchorEl={orgAnchorEl} open={orgMenuOpen} onClose={handleOrgClose}>
-                        {assignedOrganizations.map((org) => (
+                        {(assignedOrganizations || []).map((org) => (
                             <MenuItem key={org.id} onClick={() => handleOrgSwitch(org.id)} selected={org.id === activeOrganizationId}>
                                 <ListItemText>{org.name}</ListItemText>
                                 {org.id === activeOrganizationId && (
@@ -287,7 +287,7 @@ const OrgWorkspaceBreadcrumbs = () => {
                         ))}
                     </StyledMenu>
                     <StyledMenu anchorEl={workspaceAnchorEl} open={workspaceMenuOpen} onClose={handleWorkspaceClose}>
-                        {assignedWorkspaces.map((workspace) => (
+                        {(assignedWorkspaces || []).map((workspace) => (
                             <MenuItem
                                 key={workspace.id}
                                 onClick={() => switchWorkspace(workspace.id)}
@@ -305,14 +305,14 @@ const OrgWorkspaceBreadcrumbs = () => {
                     <Breadcrumbs aria-label='breadcrumb'>
                         <StyledBreadcrumb
                             isDarkMode={customization.isDarkMode}
-                            label={assignedOrganizations.find((org) => org.id === activeOrganizationId)?.name || 'Organization'}
+                            label={(assignedOrganizations || []).find((org) => org.id === activeOrganizationId)?.name || 'Organization'}
                             deleteIcon={<IconChevronDown size={16} />}
                             onDelete={handleOrgClick}
                             onClick={handleOrgClick}
                         />
                         <StyledBreadcrumb
                             isDarkMode={customization.isDarkMode}
-                            label={assignedWorkspaces.find((ws) => ws.id === activeWorkspaceId)?.name || 'Workspace'}
+                            label={(assignedWorkspaces || []).find((ws) => ws.id === activeWorkspaceId)?.name || 'Workspace'}
                             deleteIcon={<IconChevronDown size={16} />}
                             onDelete={handleWorkspaceClick}
                             onClick={handleWorkspaceClick}
@@ -354,7 +354,7 @@ const OrgWorkspaceBreadcrumbs = () => {
                 <DialogContent>
                     <Stack spacing={3}>
                         <Typography variant='h5'>Workspace Unavailable</Typography>
-                        {assignedWorkspaces.length > 0 && !activeOrganizationId ? (
+                        {(assignedWorkspaces || []).length > 0 && !activeOrganizationId ? (
                             <>
                                 <Typography variant='body1'>
                                     Your current workspace is no longer available. Please select another workspace to continue.
@@ -371,7 +371,7 @@ const OrgWorkspaceBreadcrumbs = () => {
                                     <MenuItem disabled value=''>
                                         <em>Select Workspace</em>
                                     </MenuItem>
-                                    {assignedWorkspaces.map((workspace, index) => (
+                                    {(assignedWorkspaces || []).map((workspace, index) => (
                                         <MenuItem key={index} value={workspace.id}>
                                             {workspace.name}
                                         </MenuItem>
@@ -394,13 +394,13 @@ const OrgWorkspaceBreadcrumbs = () => {
                                     <MenuItem disabled value=''>
                                         <em>Select Organization</em>
                                     </MenuItem>
-                                    {assignedOrganizations.map((org, index) => (
+                                    {(assignedOrganizations || []).map((org, index) => (
                                         <MenuItem key={index} value={org.id}>
                                             {org.name}
                                         </MenuItem>
                                     ))}
                                 </Select>
-                                {activeOrganizationId && assignedWorkspaces.length > 0 && (
+                                {activeOrganizationId && (assignedWorkspaces || []).length > 0 && (
                                     <Select
                                         fullWidth
                                         value={activeWorkspaceId || ''}
@@ -414,7 +414,7 @@ const OrgWorkspaceBreadcrumbs = () => {
                                         <MenuItem disabled value=''>
                                             <em>Select Workspace</em>
                                         </MenuItem>
-                                        {assignedWorkspaces.map((workspace, index) => (
+                                        {(assignedWorkspaces || []).map((workspace, index) => (
                                             <MenuItem key={index} value={workspace.id}>
                                                 {workspace.name}
                                             </MenuItem>

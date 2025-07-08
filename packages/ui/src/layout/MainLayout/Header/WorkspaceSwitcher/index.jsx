@@ -268,7 +268,7 @@ const WorkspaceSwitcher = () => {
                         open={open}
                         onClose={handleClose}
                     >
-                        {assignedWorkspaces.map((item, index) => (
+                        {(assignedWorkspaces || []).map((item, index) => (
                             <MenuItem
                                 onClick={() => {
                                     switchWorkspace(item.id)
@@ -331,7 +331,7 @@ const WorkspaceSwitcher = () => {
                             <MenuItem disabled value=''>
                                 <em>Select Workspace</em>
                             </MenuItem>
-                            {assignedWorkspaces.map((workspace, index) => (
+                            {(assignedWorkspaces || []).map((workspace, index) => (
                                 <MenuItem key={index} value={workspace.id}>
                                     {workspace.name}
                                 </MenuItem>
