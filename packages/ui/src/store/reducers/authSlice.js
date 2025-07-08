@@ -48,7 +48,7 @@ const authSlice = createSlice({
         workspaceNameUpdated: (state, action) => {
             const updatedWorkspace = action.payload
             // find the matching assignedWorkspace and update it
-            const assignedWorkspaces = state.user.assignedWorkspaces.map((workspace) => {
+            const assignedWorkspaces = (state.user.assignedWorkspaces || []).map((workspace) => {
                 if (workspace.id === updatedWorkspace.id) {
                     return {
                         ...workspace,

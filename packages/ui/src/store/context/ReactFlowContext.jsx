@@ -340,7 +340,7 @@ export const ReactFlowContext = ({ children }) => {
                     if (typeof inputs[inputName] === 'string' && inputs[inputName].startsWith('{{') && inputs[inputName].endsWith('}}')) {
                         inputs[inputName] = ''
                     } else if (Array.isArray(inputs[inputName])) {
-                        inputs[inputName] = inputs[inputName].filter(
+                        inputs[inputName] = (inputs[inputName] || []).filter(
                             (item) => !(typeof item === 'string' && item.startsWith('{{') && item.endsWith('}}'))
                         )
                     }
