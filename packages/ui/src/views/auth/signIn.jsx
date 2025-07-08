@@ -204,9 +204,12 @@ const SignInPage = () => {
     }, [checkBasicAuthApi.error])
 
     useEffect(() => {
-        if (getDefaultProvidersApi.data && getDefaultProvidersApi.data.providers) {
+        if (getDefaultProvidersApi.data && getDefaultProvidersApi.data.providers && Array.isArray(getDefaultProvidersApi.data.providers)) {
             //data is an array of objects, store only the provider attribute
             setConfiguredSsoProviders(getDefaultProvidersApi.data.providers.map((provider) => provider))
+        } else if (getDefaultProvidersApi.data && getDefaultProvidersApi.data.error) {
+            // Handle error response from SSO providers API
+            setConfiguredSsoProviders([])
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
