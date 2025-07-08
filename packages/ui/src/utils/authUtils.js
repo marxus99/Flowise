@@ -48,8 +48,8 @@ const extractUser = (payload) => {
         activeWorkspace: payload.activeWorkspace,
         lastLogin: payload.lastLogin,
         isOrganizationAdmin: payload.isOrganizationAdmin,
-        assignedWorkspaces: payload.assignedWorkspaces,
-        permissions: payload.permissions
+        assignedWorkspaces: payload.assignedWorkspaces || [],
+        permissions: payload.permissions || []
     }
     return user
 }
@@ -58,8 +58,8 @@ const updateStateAndLocalStorage = (state, payload) => {
     const user = extractUser(payload)
     state.user = user
     state.token = payload.token
-    state.permissions = payload.permissions
-    state.features = payload.features
+    state.permissions = payload.permissions || []
+    state.features = payload.features || {}
     state.isAuthenticated = true
     state.isGlobal = user.isOrganizationAdmin
     localStorage.setItem('isAuthenticated', 'true')
