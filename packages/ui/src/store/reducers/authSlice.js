@@ -40,12 +40,15 @@ const authSlice = createSlice({
             AuthUtils.updateStateAndLocalStorage(state, action.payload)
         },
         userProfileUpdated: (state, action) => {
+            if (!state.user) return // Early exit if user is null
             const user = AuthUtils.extractUser(action.payload)
             state.user.name = user.name
             state.user.email = user.email
             AuthUtils.updateCurrentUser(state.user)
         },
         workspaceNameUpdated: (state, action) => {
+            if (!state.user) return // Early exit if user is null
+
             const updatedWorkspace = action.payload
             // find the matching assignedWorkspace and update it
             const assignedWorkspaces = (state.user.assignedWorkspaces || []).map((workspace) => {
